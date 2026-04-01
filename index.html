@@ -3,13 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tensegrity Visualizer — PoC Protocol</title>
+  <title>Tensegrity Visualizer v0.2 — PoC Protocol</title>
   <style>
-    /* ═══════════════════════════════════════════════
-       BASE & RESET
-    ═══════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --bg:           #0d0f14;
       --panel-bg:     #13161e;
@@ -19,1885 +15,1308 @@
       --accent3:      #f0c060;
       --text:         #d0d6e8;
       --text-muted:   #6b7494;
-      --strut-color:  #e8e8f0;
+      --strut-color:  #e0e0f8;
       --cable-color:  #3ecfcf;
-      --health-good:  #3ecfcf;
-      --health-mid:   #f0c060;
-      --health-bad:   #f06060;
-      --panel-w:      320px;
+      --slack-color:  #3a4060;
+      --dominant-color: #f06060;
+      --panel-w:      340px;
     }
-
-    html, body {
-      width: 100%; height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-      font-size: 13px;
-      overflow: hidden;
-    }
-
-    /* ═══════════════════════════════════════════════
-       LAYOUT
-    ═══════════════════════════════════════════════ */
-    #app {
-      display: flex;
-      width: 100vw; height: 100vh;
-    }
-
-    #sidebar {
-      width: var(--panel-w);
-      min-width: var(--panel-w);
-      height: 100vh;
-      overflow-y: auto;
-      overflow-x: hidden;
-      background: var(--panel-bg);
-      border-right: 1px solid var(--panel-border);
-      display: flex;
-      flex-direction: column;
-      z-index: 10;
-      scrollbar-width: thin;
-      scrollbar-color: var(--panel-border) transparent;
-    }
-
-    #viewport {
-      flex: 1;
-      position: relative;
-    }
-
-    canvas {
-      display: block;
-      width: 100% !important;
-      height: 100% !important;
-    }
-
-    /* ═══════════════════════════════════════════════
-       SIDEBAR SECTIONS
-    ═══════════════════════════════════════════════ */
-    .sidebar-header {
-      padding: 16px 16px 12px;
-      border-bottom: 1px solid var(--panel-border);
-      position: sticky; top: 0;
-      background: var(--panel-bg);
-      z-index: 1;
-    }
-
-    .sidebar-header h1 {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-
-    .sidebar-header p {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 3px;
-    }
-
-    .section {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--panel-border);
-    }
-
-    .section-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 10px;
-    }
-
-    /* ═══════════════════════════════════════════════
-       CONFIGURATION PRESET PILLS
-    ═══════════════════════════════════════════════ */
-    .preset-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px;
-    }
-
-    .preset-btn {
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 6px;
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 500;
-      padding: 7px 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-      text-align: center;
-      line-height: 1.3;
-    }
-
-    .preset-btn:hover {
-      border-color: var(--accent);
-      color: var(--text);
-    }
-
-    .preset-btn.active {
-      background: color-mix(in srgb, var(--accent) 15%, transparent);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .preset-btn .preset-sub {
-      font-size: 9px;
-      color: var(--text-muted);
-      display: block;
-      margin-top: 2px;
-    }
-
-    /* ═══════════════════════════════════════════════
-       SLIDERS
-    ═══════════════════════════════════════════════ */
-    .slider-row {
-      margin-bottom: 12px;
-    }
-
-    .slider-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .slider-label {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .slider-value {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text);
-      min-width: 36px;
-      text-align: right;
-    }
-
-    .slider-value.good  { color: var(--health-good); }
-    .slider-value.mid   { color: var(--health-mid); }
-    .slider-value.bad   { color: var(--health-bad); }
-
-    input[type=range] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 4px;
-      border-radius: 2px;
-      background: var(--panel-border);
-      outline: none;
-      cursor: pointer;
-    }
-
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: var(--accent);
-      cursor: pointer;
-      transition: transform 0.1s;
-    }
-
-    input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-    }
-
-    input[type=range].cable-slider::-webkit-slider-thumb { background: var(--cable-color); }
-    input[type=range].strut-slider::-webkit-slider-thumb { background: var(--strut-color); }
-
-    /* ═══════════════════════════════════════════════
-       ELEMENT LIST (Struts + Cables)
-    ═══════════════════════════════════════════════ */
-    .element-list {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      max-height: 280px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--panel-border) transparent;
-    }
-
-    .element-item {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 5px 7px;
-      border-radius: 5px;
-      background: var(--bg);
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .element-item:hover { border-color: var(--panel-border); }
-    .element-item.selected { border-color: var(--accent); }
-
-    .element-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .element-dot.strut { background: var(--strut-color); }
-    .element-dot.cable { background: var(--cable-color); }
-
-    .element-name {
-      flex: 1;
-      font-size: 11px;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .element-edit {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 11px;
-      cursor: pointer;
-      padding: 1px 3px;
-      border-radius: 3px;
-    }
-    .element-edit:hover { color: var(--text); background: var(--panel-border); }
-
-    .element-tension {
-      font-size: 10px;
-      width: 32px;
-      text-align: right;
-      flex-shrink: 0;
-    }
-
-    /* inline edit */
-    .element-name-input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--accent);
-      border-radius: 3px;
-      color: var(--text);
-      font-size: 11px;
-      padding: 1px 4px;
-      outline: none;
-    }
-
-    /* ═══════════════════════════════════════════════
-       HEALTH INDICATOR
-    ═══════════════════════════════════════════════ */
-    .health-display {
-      background: var(--bg);
-      border-radius: 8px;
-      padding: 12px;
-      border: 1px solid var(--panel-border);
-    }
-
-    .health-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 4px;
-    }
-
-    .health-value {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--health-good);
-      line-height: 1;
-    }
-
-    .health-class {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 3px;
-    }
-
-    .health-bar {
-      height: 4px;
-      border-radius: 2px;
-      background: var(--panel-border);
-      margin-top: 8px;
-      overflow: hidden;
-    }
-
-    .health-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.4s, background 0.4s;
-      background: var(--health-good);
-    }
-
-    /* ═══════════════════════════════════════════════
-       TENSION MAP
-    ═══════════════════════════════════════════════ */
-    .tension-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-
-    .tension-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      width: 90px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .tension-bar-bg {
-      flex: 1;
-      height: 3px;
-      background: var(--panel-border);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .tension-bar-fill {
-      height: 100%;
-      border-radius: 2px;
-      transition: width 0.3s;
-    }
-
-    .tension-pct {
-      font-size: 10px;
-      color: var(--text-muted);
-      width: 28px;
-      text-align: right;
-    }
-
-    /* ═══════════════════════════════════════════════
-       TABS
-    ═══════════════════════════════════════════════ */
-    .tabs {
-      display: flex;
-      gap: 0;
-      border-bottom: 1px solid var(--panel-border);
-      padding: 0 16px;
-    }
-
-    .tab {
-      font-size: 11px;
-      padding: 8px 10px;
-      cursor: pointer;
-      color: var(--text-muted);
-      border-bottom: 2px solid transparent;
-      transition: all 0.15s;
-      margin-bottom: -1px;
-    }
-
-    .tab:hover { color: var(--text); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    /* ═══════════════════════════════════════════════
-       ORG NAME INPUT
-    ═══════════════════════════════════════════════ */
-    .org-input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 6px;
-      color: var(--text);
-      font-size: 12px;
-      padding: 7px 10px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    .org-input:focus { border-color: var(--accent); }
-
-    /* ═══════════════════════════════════════════════
-       TOGGLE SWITCH
-    ═══════════════════════════════════════════════ */
-    .toggle-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .toggle-switch {
-      position: relative;
-      width: 32px; height: 18px;
-      cursor: pointer;
-    }
-
-    .toggle-switch input { display: none; }
-
-    .toggle-track {
-      position: absolute;
-      inset: 0;
-      border-radius: 9px;
-      background: var(--panel-border);
-      transition: background 0.2s;
-    }
-
-    .toggle-switch input:checked + .toggle-track {
-      background: var(--accent);
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 2px; left: 2px;
-      width: 14px; height: 14px;
-      border-radius: 50%;
-      background: white;
-      transition: transform 0.2s;
-    }
-
-    .toggle-switch input:checked + .toggle-track + .toggle-thumb {
-      transform: translateX(14px);
-    }
-
-    /* ═══════════════════════════════════════════════
-       VIEWPORT OVERLAYS
-    ═══════════════════════════════════════════════ */
-    #viewport-label {
-      position: absolute;
-      top: 16px; left: 16px;
-      font-size: 11px;
-      color: var(--text-muted);
-      pointer-events: none;
-      line-height: 1.8;
-    }
-
-    #viewport-label .org-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: 0.02em;
-    }
-
-    #viewport-label .config-name {
-      color: var(--accent);
-    }
-
-    #hint-bar {
-      position: absolute;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px;
-      color: var(--text-muted);
-      pointer-events: none;
-      background: color-mix(in srgb, var(--bg) 80%, transparent);
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--panel-border);
-    }
-
-    #selected-info {
-      position: absolute;
-      bottom: 50px; right: 16px;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 11px;
-      min-width: 160px;
-      display: none;
-    }
-
-    #selected-info .sel-type {
-      font-size: 9px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    #selected-info .sel-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    #selected-info .sel-detail {
-      color: var(--text-muted);
-      line-height: 1.7;
-    }
-
-    /* ═══════════════════════════════════════════════
-       BUTTONS
-    ═══════════════════════════════════════════════ */
-    .btn {
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      color: var(--text);
-      font-size: 11px;
-      padding: 6px 12px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn:hover { border-color: var(--accent); color: var(--accent); }
-    .btn.primary {
-      background: color-mix(in srgb, var(--accent) 15%, transparent);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    /* ═══════════════════════════════════════════════
-       SCROLLBAR
-    ═══════════════════════════════════════════════ */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text);
+      font-family:'Inter','Segoe UI',system-ui,sans-serif; font-size:13px; overflow:hidden; }
+
+    /* ── LAYOUT ── */
+    #app { display:flex; width:100vw; height:100vh; }
+    #sidebar { width:var(--panel-w); min-width:var(--panel-w); height:100vh;
+      overflow-y:auto; overflow-x:hidden; background:var(--panel-bg);
+      border-right:1px solid var(--panel-border); display:flex; flex-direction:column;
+      z-index:10; scrollbar-width:thin; scrollbar-color:var(--panel-border) transparent; }
+    #viewport { flex:1; position:relative; }
+    canvas { display:block; width:100%!important; height:100%!important; }
+
+    /* ── SIDEBAR COMPONENTS ── */
+    .sidebar-header { padding:14px 16px 10px; border-bottom:1px solid var(--panel-border);
+      position:sticky; top:0; background:var(--panel-bg); z-index:1; }
+    .sidebar-header h1 { font-size:12px; font-weight:700; letter-spacing:.08em;
+      text-transform:uppercase; color:var(--accent); }
+    .sidebar-header p { font-size:10px; color:var(--text-muted); margin-top:2px; }
+
+    .tabs { display:flex; border-bottom:1px solid var(--panel-border); }
+    .tab { flex:1; text-align:center; font-size:11px; padding:8px 4px; cursor:pointer;
+      color:var(--text-muted); border-bottom:2px solid transparent; transition:all .15s; }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+
+    .section { padding:12px 14px; border-bottom:1px solid var(--panel-border); }
+    .section-label { font-size:10px; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+
+    /* ── PRESET GRID ── */
+    .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    .preset-btn { background:var(--bg); border:1px solid var(--panel-border);
+      border-radius:5px; color:var(--text-muted); font-size:10px; font-weight:500;
+      padding:6px 7px; cursor:pointer; transition:all .15s; text-align:center; line-height:1.3; }
+    .preset-btn:hover { border-color:var(--accent); color:var(--text); }
+    .preset-btn.active { background:color-mix(in srgb,var(--accent) 15%,transparent);
+      border-color:var(--accent); color:var(--accent); }
+    .preset-btn .preset-sub { font-size:9px; color:var(--text-muted); display:block; margin-top:1px; }
+
+    /* ── SLIDERS ── */
+    .slider-row { margin-bottom:10px; }
+    .slider-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .slider-label { font-size:11px; color:var(--text-muted); }
+    .slider-value { font-size:11px; font-weight:600; color:var(--text); min-width:36px; text-align:right; }
+    .slider-value.good { color:var(--accent2); }
+    .slider-value.mid  { color:var(--accent3); }
+    .slider-value.bad  { color:#f06060; }
+    input[type=range] { -webkit-appearance:none; width:100%; height:3px; border-radius:2px;
+      background:var(--panel-border); outline:none; cursor:pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px;
+      border-radius:50%; background:var(--accent); cursor:pointer; }
+
+    /* ── MEMBER LIST ── */
+    .member-list { display:flex; flex-direction:column; gap:4px;
+      max-height:260px; overflow-y:auto; scrollbar-width:thin; }
+    .member-item { border-radius:5px; background:var(--bg); border:1px solid transparent;
+      padding:5px 8px; cursor:pointer; transition:all .15s; }
+    .member-item:hover { border-color:var(--panel-border); }
+    .member-item.selected { border-color:var(--accent)!important; }
+    .member-item.slack { opacity:.55; }
+    .member-header { display:flex; align-items:center; gap:6px; }
+    .member-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .member-dot.strut { background:var(--strut-color); }
+    .member-dot.cable { background:var(--cable-color); }
+    .member-dot.cable.slack { background:var(--slack-color); border:1px solid #556; }
+    .member-dot.cable.dominant { background:var(--dominant-color); }
+    .member-name { flex:1; font-size:11px; color:var(--text); white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis; }
+    .member-score { font-size:10px; font-weight:600; flex-shrink:0; }
+    .member-controls { margin-top:6px; padding-top:5px; border-top:1px solid var(--panel-border); }
+    .member-controls .slider-row { margin-bottom:5px; }
+
+    /* ── INPUTS ── */
+    .org-input, .json-input { width:100%; background:var(--bg); border:1px solid var(--panel-border);
+      border-radius:5px; color:var(--text); font-size:12px; padding:6px 9px;
+      outline:none; transition:border-color .15s; }
+    .org-input:focus, .json-input:focus { border-color:var(--accent); }
+    .json-input { font-family:monospace; font-size:10px; resize:vertical; min-height:160px; }
+
+    /* ── TOGGLES ── */
+    .toggle-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
+    .toggle-switch { position:relative; width:30px; height:16px; cursor:pointer; }
+    .toggle-switch input { display:none; }
+    .toggle-track { position:absolute; inset:0; border-radius:8px;
+      background:var(--panel-border); transition:background .2s; }
+    .toggle-switch input:checked + .toggle-track { background:var(--accent); }
+    .toggle-thumb { position:absolute; top:2px; left:2px; width:12px; height:12px;
+      border-radius:50%; background:white; transition:transform .2s; }
+    .toggle-switch input:checked + .toggle-track + .toggle-thumb { transform:translateX(14px); }
+
+    /* ── HEALTH ── */
+    .health-display { background:var(--bg); border-radius:7px; padding:10px 12px;
+      border:1px solid var(--panel-border); }
+    .health-label { font-size:9px; color:var(--text-muted); text-transform:uppercase;
+      letter-spacing:.1em; margin-bottom:3px; }
+    .health-value { font-size:20px; font-weight:700; color:var(--accent2); line-height:1; }
+    .health-class { font-size:10px; color:var(--text-muted); margin-top:2px; }
+    .health-bar { height:3px; border-radius:2px; background:var(--panel-border); margin-top:7px; overflow:hidden; }
+    .health-bar-fill { height:100%; border-radius:2px; transition:width .4s, background .4s; }
+
+    /* ── TENSION MAP ── */
+    .tension-row { display:flex; align-items:center; gap:5px; margin-bottom:5px; }
+    .tension-label { font-size:9px; color:var(--text-muted); width:100px; white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis; }
+    .tension-bar-bg { flex:1; height:3px; background:var(--panel-border); border-radius:2px; overflow:hidden; }
+    .tension-bar-fill { height:100%; border-radius:2px; transition:width .3s; }
+    .tension-pct { font-size:9px; color:var(--text-muted); width:26px; text-align:right; }
+
+    /* ── BUTTONS ── */
+    .btn { background:var(--bg); border:1px solid var(--panel-border); color:var(--text);
+      font-size:11px; padding:5px 10px; border-radius:5px; cursor:pointer; transition:all .15s; }
+    .btn:hover { border-color:var(--accent); color:var(--accent); }
+    .btn.primary { background:color-mix(in srgb,var(--accent) 15%,transparent);
+      border-color:var(--accent); color:var(--accent); }
+    .btn.danger { border-color:#f06060; color:#f06060; }
+    .btn.sm { font-size:10px; padding:3px 7px; }
+    .btn-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+
+    /* ── VIEWPORT OVERLAYS ── */
+    #viewport-label { position:absolute; top:14px; left:14px; pointer-events:none; line-height:1.8; }
+    #viewport-label .org-name { font-size:15px; font-weight:600; color:var(--text); }
+    #viewport-label .config-name { font-size:11px; color:var(--accent); }
+    #hint-bar { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+      font-size:10px; color:var(--text-muted); pointer-events:none;
+      background:color-mix(in srgb,var(--bg) 80%,transparent);
+      padding:4px 10px; border-radius:20px; border:1px solid var(--panel-border); }
+    #selected-info { position:absolute; bottom:46px; right:14px; background:var(--panel-bg);
+      border:1px solid var(--panel-border); border-radius:7px; padding:9px 11px;
+      font-size:11px; min-width:180px; display:none; }
+    #selected-info .sel-type { font-size:9px; text-transform:uppercase;
+      letter-spacing:.1em; color:var(--text-muted); margin-bottom:3px; }
+    #selected-info .sel-name { font-size:12px; font-weight:600; color:var(--text); margin-bottom:5px; }
+    #selected-info .sel-detail { color:var(--text-muted); line-height:1.7; }
+
+    /* ── IMPORT PANEL ── */
+    .import-status { font-size:10px; padding:5px 7px; border-radius:4px;
+      margin-top:6px; display:none; }
+    .import-status.ok  { background:color-mix(in srgb,var(--accent2) 15%,transparent);
+      color:var(--accent2); border:1px solid var(--accent2); }
+    .import-status.err { background:color-mix(in srgb,#f06060 15%,transparent);
+      color:#f06060; border:1px solid #f06060; }
+
+    /* ── NODE DOMINANCE INDICATOR ── */
+    .node-item { display:flex; align-items:center; gap:6px; padding:4px 7px;
+      border-radius:4px; background:var(--bg); margin-bottom:3px; font-size:10px; }
+    .node-badge { font-size:8px; padding:1px 5px; border-radius:3px; font-weight:600; }
+    .node-badge.dominant { background:color-mix(in srgb,#f06060 20%,transparent); color:#f06060; }
+    .node-badge.isolated { background:color-mix(in srgb,var(--accent3) 20%,transparent); color:var(--accent3); }
+    .node-badge.normal   { background:color-mix(in srgb,var(--accent2) 20%,transparent); color:var(--accent2); }
+
+    ::-webkit-scrollbar { width:3px; }
+    ::-webkit-scrollbar-thumb { background:var(--panel-border); border-radius:2px; }
   </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
-  <div id="sidebar">
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h1>Tensegrity Visualizer</h1>
+    <p>Proof of Coordination Protocol — v0.2</p>
+  </div>
 
-    <!-- Header -->
-    <div class="sidebar-header">
-      <h1>Tensegrity Visualizer</h1>
-      <p>Proof of Coordination Protocol — v0.1</p>
-    </div>
+  <!-- Org name -->
+  <div class="section" style="padding-bottom:10px">
+    <input class="org-input" id="orgName" type="text" placeholder="Organization name..." value="Octant" />
+  </div>
 
-    <!-- Org Identity -->
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="structure">Structure</div>
+    <div class="tab" data-tab="members">Members</div>
+    <div class="tab" data-tab="import">Import</div>
+    <div class="tab" data-tab="analysis">Analysis</div>
+  </div>
+
+  <!-- ── TAB: STRUCTURE ── -->
+  <div class="tab-content active" id="tab-structure">
     <div class="section">
-      <div class="section-label">Organization</div>
-      <input class="org-input" id="orgName" type="text" placeholder="Organization name..." value="Octant" />
+      <div class="section-label">Geometry Preset</div>
+      <div class="preset-grid" id="presetGrid">
+        <button class="preset-btn active" data-preset="prism3">3-Strut Prism<span class="preset-sub">Simplex · D₃</span></button>
+        <button class="preset-btn" data-preset="prism4">4-Strut Antiprism<span class="preset-sub">Square · D₄</span></button>
+        <button class="preset-btn" data-preset="icosahedron">Icosahedron<span class="preset-sub">6 struts · O</span></button>
+        <button class="preset-btn" data-preset="tower2">2-Stage Tower<span class="preset-sub">Needle · C₃</span></button>
+        <button class="preset-btn" data-preset="tower3">3-Stage Tower<span class="preset-sub">Mast · C₃</span></button>
+        <button class="preset-btn" data-preset="torus">Torus T(4-3)<span class="preset-sub">Ring · C₄</span></button>
+      </div>
     </div>
 
-    <!-- Tabs: Structure / Labels / Analysis -->
-    <div class="tabs">
-      <div class="tab active" data-tab="structure">Structure</div>
-      <div class="tab" data-tab="labels">Labels</div>
-      <div class="tab" data-tab="analysis">Analysis</div>
+    <div class="section">
+      <div class="section-label">Shape Parameters</div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Scale</span><span class="slider-value" id="val-scale">1.0×</span></div>
+        <input type="range" id="sl-scale" min="0.3" max="3" step="0.05" value="1.0" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Twist Angle</span><span class="slider-value" id="val-twist">150°</span></div>
+        <input type="range" id="sl-twist" min="90" max="270" step="1" value="150" />
+      </div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Aspect Ratio (H/R)</span><span class="slider-value" id="val-aspect">1.4</span></div>
+        <input type="range" id="sl-aspect" min="0.4" max="4.0" step="0.05" value="1.4" />
+      </div>
     </div>
 
-    <!-- ── TAB: STRUCTURE ── -->
-    <div class="tab-content active" id="tab-structure">
-
-      <!-- Geometry Presets -->
-      <div class="section">
-        <div class="section-label">Geometry</div>
-        <div class="preset-grid" id="presetGrid">
-          <button class="preset-btn active" data-preset="prism3">
-            3-Strut Prism
-            <span class="preset-sub">Simplex · D₃</span>
-          </button>
-          <button class="preset-btn" data-preset="prism4">
-            4-Strut Antiprism
-            <span class="preset-sub">Square · D₄</span>
-          </button>
-          <button class="preset-btn" data-preset="icosahedron">
-            Icosahedron
-            <span class="preset-sub">6 struts · O</span>
-          </button>
-          <button class="preset-btn" data-preset="tower2">
-            2-Stage Tower
-            <span class="preset-sub">Needle · C₃</span>
-          </button>
-          <button class="preset-btn" data-preset="tower3">
-            3-Stage Tower
-            <span class="preset-sub">Mast · C₃</span>
-          </button>
-          <button class="preset-btn" data-preset="torus">
-            Torus T(4-3)
-            <span class="preset-sub">Ring · C₄</span>
-          </button>
-        </div>
+    <div class="section">
+      <div class="section-label">Global Physics</div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Cable Pretension (global)</span><span class="slider-value good" id="val-pretension">100%</span></div>
+        <input type="range" id="sl-pretension" min="0" max="200" step="1" value="100" />
       </div>
-
-      <!-- Structural Parameters -->
-      <div class="section">
-        <div class="section-label">Parameters</div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Scale</span>
-            <span class="slider-value" id="val-scale">1.0×</span>
-          </div>
-          <input type="range" id="sl-scale" min="0.3" max="3" step="0.05" value="1.0" />
-        </div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Twist Angle</span>
-            <span class="slider-value" id="val-twist">150°</span>
-          </div>
-          <input type="range" id="sl-twist" min="90" max="270" step="1" value="150" />
-        </div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Aspect Ratio (H/R)</span>
-            <span class="slider-value" id="val-aspect">1.4</span>
-          </div>
-          <input type="range" id="sl-aspect" min="0.4" max="4.0" step="0.05" value="1.4" />
-        </div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Strut Compression (global)</span><span class="slider-value" id="val-compression">100%</span></div>
+        <input type="range" id="sl-compression" min="0" max="200" step="1" value="100" />
       </div>
-
-      <!-- Physics Tension Controls -->
-      <div class="section">
-        <div class="section-label">Global Tension / Health</div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Cable Pretension</span>
-            <span class="slider-value cable-slider good" id="val-pretension">100%</span>
-          </div>
-          <input type="range" class="cable-slider" id="sl-pretension" min="0" max="200" step="1" value="100" />
-        </div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Strut Compression</span>
-            <span class="slider-value strut-slider" id="val-compression">100%</span>
-          </div>
-          <input type="range" class="strut-slider" id="sl-compression" min="0" max="200" step="1" value="100" />
-        </div>
-
-        <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Damping</span>
-            <span class="slider-value" id="val-damping">0.03</span>
-          </div>
-          <input type="range" id="sl-damping" min="0.001" max="0.2" step="0.001" value="0.03" />
-        </div>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Damping</span><span class="slider-value" id="val-damping">0.03</span></div>
+        <input type="range" id="sl-damping" min="0.001" max="0.15" step="0.001" value="0.03" />
       </div>
-
-      <!-- Display Toggles -->
-      <div class="section">
-        <div class="section-label">Display</div>
-        <div class="toggle-row">
-          <span class="slider-label">Show nodes</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="tog-nodes" checked />
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <span class="slider-label">Show labels</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="tog-labels" checked />
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <span class="slider-label">Color by tension</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="tog-tension-color" checked />
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <span class="slider-label">Animate physics</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="tog-animate" checked />
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <span class="slider-label">Show axes</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="tog-axes" />
-            <div class="toggle-track"></div>
-            <div class="toggle-thumb"></div>
-          </label>
-        </div>
-      </div>
-
-    </div><!-- /tab-structure -->
-
-    <!-- ── TAB: LABELS ── -->
-    <div class="tab-content" id="tab-labels">
-
-      <div class="section">
-        <div class="section-label">Struts <span style="color:var(--text-muted)">(compression · authority)</span></div>
-        <div class="element-list" id="strut-list"></div>
-      </div>
-
-      <div class="section">
-        <div class="section-label">Cables <span style="color:var(--text-muted)">(tension · accountability)</span></div>
-        <div class="element-list" id="cable-list"></div>
-      </div>
-
-      <div class="section">
-        <div class="btn-row">
-          <button class="btn" id="btn-reset-labels">Reset Labels</button>
-          <button class="btn primary" id="btn-export-labels">Export JSON</button>
-        </div>
-      </div>
-
-    </div><!-- /tab-labels -->
-
-    <!-- ── TAB: ANALYSIS ── -->
-    <div class="tab-content" id="tab-analysis">
-
-      <div class="section">
-        <div class="section-label">Structural Health</div>
-        <div class="health-display">
-          <div class="health-label">Tensegrity Index</div>
-          <div class="health-value" id="health-value">87%</div>
-          <div class="health-class" id="health-class">Class 1 · Fully Prestressed</div>
-          <div class="health-bar">
-            <div class="health-bar-fill" id="health-bar-fill" style="width:87%"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-label">Topology</div>
-        <div style="color:var(--text-muted); line-height:2; font-size:11px;">
-          <div>Nodes: <span style="color:var(--text)" id="stat-nodes">—</span></div>
-          <div>Struts: <span style="color:var(--strut-color)" id="stat-struts">—</span></div>
-          <div>Cables: <span style="color:var(--cable-color)" id="stat-cables">—</span></div>
-          <div>Strut/Cable ratio: <span style="color:var(--text)" id="stat-ratio">—</span></div>
-          <div>Symmetry group: <span style="color:var(--accent)" id="stat-symmetry">—</span></div>
-          <div>DOF (Maxwell): <span style="color:var(--text)" id="stat-dof">—</span></div>
-        </div>
-      </div>
-
-      <div class="section">
-        <div class="section-label">Tension Map</div>
-        <div id="tension-map"></div>
-      </div>
-
-      <div class="section">
-        <div class="section-label">PoC Configuration Class</div>
-        <div style="font-size:11px; color:var(--text-muted); line-height:1.7;" id="poc-class-desc">
-          Loading...
-        </div>
-      </div>
-
-    </div><!-- /tab-analysis -->
-
-  </div><!-- /sidebar -->
-
-  <!-- ══════════════════════ VIEWPORT ══════════════════════ -->
-  <div id="viewport">
-    <canvas id="canvas"></canvas>
-
-    <div id="viewport-label">
-      <div class="org-name" id="overlay-orgname">Octant</div>
-      <div class="config-name" id="overlay-config">3-Strut Prism · Simplex</div>
     </div>
 
-    <div id="hint-bar">Drag to rotate · Scroll to zoom · Click strut/cable to select</div>
-
-    <div id="selected-info">
-      <div class="sel-type" id="sel-type">—</div>
-      <div class="sel-name" id="sel-name">—</div>
-      <div class="sel-detail" id="sel-detail">—</div>
+    <div class="section">
+      <div class="section-label">Display</div>
+      <div class="toggle-row"><span class="slider-label">Show nodes</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-nodes" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row"><span class="slider-label">Show labels</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-labels" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row"><span class="slider-label">Color by tension</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-tension-color" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row"><span class="slider-label">Animate physics</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-animate" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row"><span class="slider-label">Highlight dominance</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-dominance" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
     </div>
   </div>
 
+  <!-- ── TAB: MEMBERS ── -->
+  <div class="tab-content" id="tab-members">
+    <div class="section">
+      <div class="section-label">Struts <span style="color:var(--text-muted)">(compression)</span></div>
+      <div class="member-list" id="strut-list"></div>
+    </div>
+    <div class="section">
+      <div class="section-label">Cables <span style="color:var(--text-muted)">(tension)</span></div>
+      <div class="member-list" id="cable-list"></div>
+    </div>
+    <div class="section">
+      <div class="btn-row">
+        <button class="btn sm" id="btn-reset-labels">Reset Labels</button>
+        <button class="btn sm primary" id="btn-export">Export JSON</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: IMPORT ── -->
+  <div class="tab-content" id="tab-import">
+    <div class="section">
+      <div class="section-label">Load Custom Topology</div>
+      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+        Paste a topology JSON (v0.2 format) to define arbitrary nodes, struts, and cables.
+        Per-member tension values in the JSON are applied on import.
+      </p>
+      <textarea class="json-input" id="json-import" placeholder='{"organization":"...","topology":{"nodes":[...],"struts":[...],"cables":[...]}}'></textarea>
+      <div class="import-status" id="import-status"></div>
+      <div class="btn-row">
+        <button class="btn primary" id="btn-import">Load Topology</button>
+        <button class="btn" id="btn-load-across">Load Across Example</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">JSON Schema Reference</div>
+      <div style="font-size:9px; font-family:monospace; color:var(--text-muted); line-height:1.8; white-space:pre-wrap; overflow-x:auto;">nodes: [{id, label, pos:[x,y,z], role}]
+struts: [{id, nodes:[a,b], label,
+          restLengthScale, score}]
+cables: [{id, nodes:[a,b], label,
+          tensionPct(0-100), slack,
+          group}]</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: ANALYSIS ── -->
+  <div class="tab-content" id="tab-analysis">
+    <div class="section">
+      <div class="section-label">Structural Health</div>
+      <div class="health-display">
+        <div class="health-label">Tensegrity Index</div>
+        <div class="health-value" id="health-value">87%</div>
+        <div class="health-class" id="health-class">Class 1 · Fully Prestressed</div>
+        <div class="health-bar"><div class="health-bar-fill" id="health-bar-fill" style="width:87%"></div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Topology</div>
+      <div style="color:var(--text-muted); line-height:2; font-size:11px;">
+        <div>Nodes: <span style="color:var(--text)" id="stat-nodes">—</span></div>
+        <div>Struts: <span style="color:var(--strut-color)" id="stat-struts">—</span></div>
+        <div>Cables: <span style="color:var(--cable-color)" id="stat-cables">—</span></div>
+        <div>Slack cables: <span style="color:var(--slack-color)" id="stat-slack">—</span></div>
+        <div>Convergence index: <span style="color:var(--dominant-color)" id="stat-convergence">—</span></div>
+        <div>Symmetry: <span style="color:var(--accent)" id="stat-symmetry">—</span></div>
+        <div>Maxwell DOF: <span style="color:var(--text)" id="stat-dof">—</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Node Roles</div>
+      <div id="node-role-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Tension Map</div>
+      <div id="tension-map"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">PoC Classification</div>
+      <div style="font-size:11px; color:var(--text-muted); line-height:1.7;" id="poc-class-desc">—</div>
+    </div>
+  </div>
+
+</div><!-- /sidebar -->
+
+<!-- ══════════════ VIEWPORT ══════════════ -->
+<div id="viewport">
+  <canvas id="canvas"></canvas>
+  <div id="viewport-label">
+    <div class="org-name" id="overlay-orgname">Octant</div>
+    <div class="config-name" id="overlay-config">3-Strut Prism · Simplex</div>
+  </div>
+  <div id="hint-bar">Drag to rotate · Scroll to zoom · Click to select · Tab for member controls</div>
+  <div id="selected-info">
+    <div class="sel-type" id="sel-type">—</div>
+    <div class="sel-name" id="sel-name">—</div>
+    <div class="sel-detail" id="sel-detail">—</div>
+  </div>
+</div>
+
 </div><!-- /app -->
 
-<!-- THREE.JS CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <script>
-/* ═══════════════════════════════════════════════════════════════════════
-   TENSEGRITY VISUALIZER — MAIN SCRIPT
-   v0.1 · PoC Protocol
-   ═══════════════════════════════════════════════════════════════════════ */
-
 'use strict';
 
-// ──────────────────────────────────────────────
-// GEOMETRY LIBRARY
-// Each preset returns { vertices: [[x,y,z],...], struts: [[i,j],...], cables: [[i,j],...], symmetry, name, description }
-// ──────────────────────────────────────────────
-const GEOMETRIES = {
-
-  prism3: (twist=150, aspect=1.4, scale=1.0) => {
-    const r = scale;
-    const h = r * aspect;
-    const phi = (twist * Math.PI) / 180;
-    const c = Math.cos, s = Math.sin;
-    const t2 = 2*Math.PI/3, t4 = 4*Math.PI/3;
-    const vertices = [
-      [r,           0,              0],
-      [r*c(t2),     r*s(t2),        0],
-      [r*c(t4),     r*s(t4),        0],
-      [r*c(phi),    r*s(phi),       h],
-      [r*c(phi+t2), r*s(phi+t2),    h],
-      [r*c(phi+t4), r*s(phi+t4),    h],
+// ═══════════════════════════════════════════════
+// GEOMETRY LIBRARY (symmetric presets)
+// ═══════════════════════════════════════════════
+const PRESETS = {
+  prism3(twist=150, aspect=1.4, scale=1.0) {
+    const r=scale, h=r*aspect, phi=twist*Math.PI/180;
+    const t2=2*Math.PI/3, t4=4*Math.PI/3;
+    const c=Math.cos, s=Math.sin;
+    const verts=[
+      [r,0,0],[r*c(t2),r*s(t2),0],[r*c(t4),r*s(t4),0],
+      [r*c(phi),r*s(phi),h],[r*c(phi+t2),r*s(phi+t2),h],[r*c(phi+t4),r*s(phi+t4),h]
     ];
-    return {
-      vertices,
-      struts:  [[0,3],[1,4],[2,5]],
-      cables:  [[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,4],[1,5],[2,3]],
-      symmetry: 'D₃', name: '3-Strut Prism', description: 'Simplex · 3 struts, 9 cables'
-    };
+    const strutDefs=[[0,3],[1,4],[2,5]];
+    const cableDefs=[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,4],[1,5],[2,3]];
+    return buildTopologyObject(verts, strutDefs, cableDefs, 'D₃','3-Strut Prism','Simplex · 3 struts, 9 cables');
   },
-
-  prism4: (twist=135, aspect=1.4, scale=1.0) => {
-    const r = scale;
-    const h = r * aspect;
-    const phi = (twist * Math.PI) / 180;
-    const c = Math.cos, s = Math.sin;
-    const q = Math.PI/2;
-    const vertices = [
-      [r, 0, 0], [0, r, 0], [-r, 0, 0], [0, -r, 0],
-      [r*c(phi), r*s(phi), h],
-      [r*c(phi+q), r*s(phi+q), h],
-      [r*c(phi+Math.PI), r*s(phi+Math.PI), h],
-      [r*c(phi+3*q), r*s(phi+3*q), h],
-    ];
-    return {
-      vertices,
-      struts:  [[0,4],[1,5],[2,6],[3,7]],
-      cables:  [
-        [0,1],[1,2],[2,3],[3,0],
-        [4,5],[5,6],[6,7],[7,4],
-        [0,5],[1,6],[2,7],[3,4],
-        [0,7],[1,4],[2,5],[3,6],
-      ],
-      symmetry: 'D₄', name: '4-Strut Antiprism', description: 'Square antiprism · 4 struts, 16 cables'
-    };
+  prism4(twist=135, aspect=1.4, scale=1.0) {
+    const r=scale, h=r*aspect, phi=twist*Math.PI/180, q=Math.PI/2;
+    const c=Math.cos, s=Math.sin;
+    const verts=[[r,0,0],[0,r,0],[-r,0,0],[0,-r,0],
+      [r*c(phi),r*s(phi),h],[r*c(phi+q),r*s(phi+q),h],
+      [r*c(phi+Math.PI),r*s(phi+Math.PI),h],[r*c(phi+3*q),r*s(phi+3*q),h]];
+    return buildTopologyObject(verts,
+      [[0,4],[1,5],[2,6],[3,7]],
+      [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,5],[1,6],[2,7],[3,4],[0,7],[1,4],[2,5],[3,6]],
+      'D₄','4-Strut Antiprism','Square · 4 struts, 16 cables');
   },
-
-  icosahedron: (twist=150, aspect=1.4, scale=1.0) => {
-    const l = scale;
-    const d = l * 0.5;
-    const vertices = [
-      [ 0,  d,  l], [ 0,  d, -l], [ 0, -d, -l], [ 0, -d,  l],
-      [ d,  l,  0], [ d, -l,  0], [-d, -l,  0], [-d,  l,  0],
-      [ l,  0,  d], [-l,  0,  d], [-l,  0, -d], [ l,  0, -d],
-    ];
-    return {
-      vertices,
-      struts: [[0,1],[2,3],[4,5],[6,7],[8,11],[9,10]],
-      cables: [
-        [0,4],[0,7],[0,8],[0,9],
-        [1,4],[1,7],[1,10],[1,11],
-        [2,5],[2,6],[2,10],[2,11],
-        [3,5],[3,6],[3,8],[3,9],
-        [4,8],[4,11],[5,8],[5,9],
-        [6,9],[6,10],[7,10],[7,11],
-      ],
-      symmetry: 'O (chiral)', name: 'Tensegrity Icosahedron', description: 'Jessen · 6 struts, 24 cables'
-    };
+  icosahedron(twist=150, aspect=1.4, scale=1.0) {
+    const l=scale, d=l*0.5;
+    const verts=[[0,d,l],[0,d,-l],[0,-d,-l],[0,-d,l],
+      [d,l,0],[d,-l,0],[-d,-l,0],[-d,l,0],[l,0,d],[-l,0,d],[-l,0,-d],[l,0,-d]];
+    return buildTopologyObject(verts,
+      [[0,1],[2,3],[4,5],[6,7],[8,11],[9,10]],
+      [[0,4],[0,7],[0,8],[0,9],[1,4],[1,7],[1,10],[1,11],
+       [2,5],[2,6],[2,10],[2,11],[3,5],[3,6],[3,8],[3,9],
+       [4,8],[4,11],[5,8],[5,9],[6,9],[6,10],[7,10],[7,11]],
+      'O (chiral)','Tensegrity Icosahedron','Jessen · 6 struts, 24 cables');
   },
-
-  tower2: (twist=150, aspect=1.4, scale=1.0) => {
-    const r = scale * 0.8;
-    const hStage = scale * aspect;
-    const stages = 2;
-    const v = [], struts = [], cables = [];
-    for (let stage = 0; stage < stages; stage++) {
-      const z0 = stage * hStage;
-      const z1 = z0 + hStage;
-      const baseRot = stage * (Math.PI / 3);
-      const phi = (stage % 2 === 0 ? 5 : 1) * Math.PI / 6 + baseRot;
-      const off = stage * 6;
-      for (let i = 0; i < 3; i++) {
-        const a = baseRot + i * 2*Math.PI/3;
-        v.push([r*Math.cos(a), r*Math.sin(a), z0]);
-      }
-      for (let i = 0; i < 3; i++) {
-        const a = phi + i * 2*Math.PI/3;
-        v.push([r*Math.cos(a), r*Math.sin(a), z1]);
-      }
-      struts.push([off,off+3],[off+1,off+4],[off+2,off+5]);
-      cables.push(
-        [off,off+1],[off+1,off+2],[off+2,off],
-        [off+3,off+4],[off+4,off+5],[off+5,off+3],
-        [off,off+4],[off+1,off+5],[off+2,off+3]
-      );
-      if (stage < stages-1) {
-        cables.push([off+3,off+6],[off+4,off+7],[off+5,off+8]);
-      }
-    }
-    return { vertices:v, struts, cables, symmetry:'C₃', name:'2-Stage Tower', description:'Stacked prisms · 6 struts, 21 cables' };
+  tower2(twist=150, aspect=1.4, scale=1.0) {
+    return buildTower(2, scale*0.8, scale*aspect);
   },
-
-  tower3: (twist=150, aspect=1.3, scale=1.0) => {
-    const r = scale * 0.6;
-    const hStage = scale * aspect;
-    const stages = 3;
-    const v = [], struts = [], cables = [];
-    for (let stage = 0; stage < stages; stage++) {
-      const z0 = stage * hStage;
-      const z1 = z0 + hStage;
-      const baseRot = stage * (Math.PI / 3);
-      const phi = (stage % 2 === 0 ? 5 : 1) * Math.PI / 6 + baseRot;
-      const off = stage * 6;
-      for (let i = 0; i < 3; i++) {
-        const a = baseRot + i * 2*Math.PI/3;
-        v.push([r*Math.cos(a), r*Math.sin(a), z0]);
-      }
-      for (let i = 0; i < 3; i++) {
-        const a = phi + i * 2*Math.PI/3;
-        v.push([r*Math.cos(a), r*Math.sin(a), z1]);
-      }
-      struts.push([off,off+3],[off+1,off+4],[off+2,off+5]);
-      cables.push(
-        [off,off+1],[off+1,off+2],[off+2,off],
-        [off+3,off+4],[off+4,off+5],[off+5,off+3],
-        [off,off+4],[off+1,off+5],[off+2,off+3]
-      );
-      if (stage < stages-1) {
-        cables.push([off+3,off+6],[off+4,off+7],[off+5,off+8]);
-      }
-    }
-    return { vertices:v, struts, cables, symmetry:'C₃', name:'3-Stage Tower', description:'Mast · 9 struts, 33 cables' };
+  tower3(twist=150, aspect=1.3, scale=1.0) {
+    return buildTower(3, scale*0.6, scale*aspect);
   },
-
-  torus: (twist=150, aspect=1.4, scale=1.0) => {
-    const Rt = scale * 2.2;
-    const r  = scale * 0.55;
-    const theta = Math.PI / 3;
-    const n = 4, m = 3;
-    const v = [], struts = [], cables = [];
-
-    // Build segment 0
-    const seg0 = [];
-    for (let i = 0; i < m; i++) {
-      const a = i * 2*Math.PI/m;
-      seg0.push([ Rt + r*Math.cos(a), 0, r*Math.sin(a) ]);
+  torus(twist=150, aspect=1.4, scale=1.0) {
+    const Rt=scale*2.2, r=scale*0.55, theta=Math.PI/3, n=4, m=3;
+    const seg0=[];
+    for(let i=0;i<m;i++){const a=i*2*Math.PI/m; seg0.push([Rt+r*Math.cos(a),0,r*Math.sin(a)]);}
+    for(let i=0;i<m;i++){const a=i*2*Math.PI/m+theta; seg0.push([Rt+r*Math.cos(a),0,r*Math.sin(a)]);}
+    const verts=[], strutDefs=[], cableDefs=[];
+    for(let k=0;k<n;k++){
+      const ang=k*2*Math.PI/n, ca=Math.cos(ang), sa=Math.sin(ang);
+      for(const pt of seg0) verts.push([pt[0]*ca-pt[1]*sa, pt[0]*sa+pt[1]*ca, pt[2]]);
     }
-    for (let i = 0; i < m; i++) {
-      const a = i * 2*Math.PI/m + theta;
-      seg0.push([ Rt + r*Math.cos(a), 0, r*Math.sin(a) ]);
-    }
-
-    // Rotate to create all n segments
-    for (let k = 0; k < n; k++) {
-      const angle = k * 2*Math.PI/n;
-      const cosA = Math.cos(angle), sinA = Math.sin(angle);
-      for (const pt of seg0) {
-        const x = pt[0]*cosA - pt[1]*sinA;
-        const y = pt[0]*sinA + pt[1]*cosA;
-        v.push([x, y, pt[2]]);
+    for(let k=0;k<n;k++){
+      const off=k*2*m;
+      for(let i=0;i<m;i++){
+        strutDefs.push([off+i,off+m+i]);
+        cableDefs.push([off+i,off+(i+1)%m],[off+m+i,off+m+(i+1)%m],[off+i,off+m+(i+1)%m]);
       }
     }
-
-    // Connect within each segment (struts + ring cables + diagonal cables)
-    for (let k = 0; k < n; k++) {
-      const off = k * 2*m;
-      for (let i = 0; i < m; i++) {
-        struts.push([off+i, off+m+i]);
-        cables.push([off+i, off+(i+1)%m]);
-        cables.push([off+m+i, off+m+(i+1)%m]);
-        cables.push([off+i, off+m+(i+1)%m]);
-      }
+    for(let k=0;k<n;k++){
+      const off=k*2*m, offN=((k+1)%n)*2*m;
+      for(let i=0;i<m;i++) cableDefs.push([off+m+i,offN+i]);
     }
-    // Connect between adjacent segments
-    for (let k = 0; k < n; k++) {
-      const off  = k * 2*m;
-      const offN = ((k+1)%n) * 2*m;
-      for (let i = 0; i < m; i++) {
-        cables.push([off+m+i, offN+i]);
-      }
-    }
-
-    return { vertices:v, struts, cables, symmetry:'C₄', name:'Torus T(4-3)', description:'Toroidal ring · 12 struts, 48 cables' };
+    return buildTopologyObject(verts,strutDefs,cableDefs,'C₄','Torus T(4-3)','Ring · 12 struts, 48 cables');
   },
 };
 
-// ──────────────────────────────────────────────
-// STATE
-// ──────────────────────────────────────────────
-const state = {
-  preset:       'prism3',
-  twist:        150,
-  aspect:       1.4,
-  scale:        1.0,
-  pretension:   1.0,
-  compression:  1.0,
-  damping:      0.03,
-  showNodes:    true,
-  showLabels:   true,
-  colorTension: true,
-  animate:      true,
-  showAxes:     false,
-  labels: {
-    struts: {},
-    cables: {},
-  },
-  selectedIdx:  null,
-  selectedType: null,
-  orgName:      'Octant',
-  geometry:     null,
-  nodes:        [],
-  springs:      [],
-};
-
-// ──────────────────────────────────────────────
-// THREE.JS SETUP
-// ──────────────────────────────────────────────
-const canvas  = document.getElementById('canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x0d0f14, 1);
-
-const scene   = new THREE.Scene();
-const camera  = new THREE.PerspectiveCamera(45, 1, 0.01, 1000);
-camera.position.set(3, 2, 5);
-camera.lookAt(0, 0, 0);
-
-// Lights
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(5, 8, 5);
-scene.add(dirLight);
-const rimLight = new THREE.PointLight(0x7b6ef6, 0.6, 20);
-rimLight.position.set(-4, -2, -4);
-scene.add(rimLight);
-
-// Resize handler
-function resizeRenderer() {
-  const vp = document.getElementById('viewport');
-  const w = vp.clientWidth, h = vp.clientHeight;
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
+function buildTower(stages, r, hStage) {
+  const v=[], sD=[], cD=[];
+  for(let st=0;st<stages;st++){
+    const z0=st*hStage, z1=z0+hStage, br=st*(Math.PI/3);
+    const phi=(st%2===0?5:1)*Math.PI/6+br, off=st*6;
+    for(let i=0;i<3;i++){const a=br+i*2*Math.PI/3; v.push([r*Math.cos(a),r*Math.sin(a),z0]);}
+    for(let i=0;i<3;i++){const a=phi+i*2*Math.PI/3; v.push([r*Math.cos(a),r*Math.sin(a),z1]);}
+    sD.push([off,off+3],[off+1,off+4],[off+2,off+5]);
+    cD.push([off,off+1],[off+1,off+2],[off+2,off],[off+3,off+4],[off+4,off+5],[off+5,off+3],[off,off+4],[off+1,off+5],[off+2,off+3]);
+    if(st<stages-1) cD.push([off+3,off+6],[off+4,off+7],[off+5,off+8]);
+  }
+  const sym=stages<=2?'C₃ (2-stage)':'C₃ (3-stage)';
+  const name=stages<=2?'2-Stage Tower':'3-Stage Tower';
+  return buildTopologyObject(v,sD,cD,sym,name,`${stages*3} struts, ${stages*9+(stages-1)*3} cables`);
 }
-window.addEventListener('resize', resizeRenderer);
-resizeRenderer();
 
-// ──────────────────────────────────────────────
-// ORBIT CONTROLS (manual, lightweight)
-// ──────────────────────────────────────────────
-const orbit = { isDragging: false, lastX: 0, lastY: 0, theta: 0.5, phi: 0.8, radius: 6.0 };
+function buildTopologyObject(verts, strutDefs, cableDefs, symmetry, name, description) {
+  const nodes = verts.map((pos,i) => ({
+    id:i, label:`N${i}`, pos:[...pos], role:'normal',
+    tensionIn:0, tensionOut:0, connectedCables:0
+  }));
+  const struts = strutDefs.map(([a,b],i) => ({
+    id:i, nodes:[a,b], label:`Strut ${i+1}`, score:null,
+    restLengthScale:1.0, tensionPct:100, currentForce:0, currentLen:0,
+    restLen:0
+  }));
+  const cables = cableDefs.map(([a,b],i) => ({
+    id:i, nodes:[a,b], label:`Cable ${i+1}`, group:'',
+    tensionPct:100, slack:false, currentForce:0, currentLen:0, restLen:0
+  }));
+  return { nodes, struts, cables, symmetry, name, description, isCustom:false };
+}
 
-function updateCamera() {
-  camera.position.x = orbit.radius * Math.sin(orbit.phi) * Math.sin(orbit.theta);
-  camera.position.y = orbit.radius * Math.cos(orbit.phi);
-  camera.position.z = orbit.radius * Math.sin(orbit.phi) * Math.cos(orbit.theta);
-  camera.lookAt(0, 0, 0);
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const state = {
+  preset:'prism3', twist:150, aspect:1.4, scale:1.0,
+  globalPretension:1.0, globalCompression:1.0, damping:0.03,
+  showNodes:true, showLabels:true, colorTension:true, animate:true, showDominance:true,
+  topology: null,       // current { nodes, struts, cables, ... }
+  simNodes: [],         // physics sim nodes
+  simSprings: [],       // physics sim springs
+  selectedType:null, selectedIdx:null,
+  orgName:'Octant',
+};
+
+// ═══════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════
+const canvas   = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setClearColor(0x0d0f14,1);
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45,1,0.01,1000);
+
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+const dl=new THREE.DirectionalLight(0xffffff,0.8); dl.position.set(5,8,5); scene.add(dl);
+const pl=new THREE.PointLight(0x7b6ef6,0.6,20); pl.position.set(-4,-2,-4); scene.add(pl);
+
+function resizeRenderer(){
+  const vp=document.getElementById('viewport');
+  const w=vp.clientWidth, h=vp.clientHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',resizeRenderer); resizeRenderer();
+
+// Orbit
+const orbit={isDragging:false,lastX:0,lastY:0,theta:0.5,phi:0.8,radius:6};
+function updateCamera(){
+  camera.position.x=orbit.radius*Math.sin(orbit.phi)*Math.sin(orbit.theta);
+  camera.position.y=orbit.radius*Math.cos(orbit.phi);
+  camera.position.z=orbit.radius*Math.sin(orbit.phi)*Math.cos(orbit.theta);
+  camera.lookAt(0,0,0);
 }
 updateCamera();
-
-canvas.addEventListener('mousedown', e => {
-  orbit.isDragging = true;
-  orbit.lastX = e.clientX;
-  orbit.lastY = e.clientY;
+canvas.addEventListener('mousedown',e=>{orbit.isDragging=true;orbit.lastX=e.clientX;orbit.lastY=e.clientY;});
+window.addEventListener('mousemove',e=>{
+  if(!orbit.isDragging)return;
+  orbit.theta-=(e.clientX-orbit.lastX)*0.008;
+  orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.clientY-orbit.lastY)*0.008));
+  orbit.lastX=e.clientX; orbit.lastY=e.clientY; updateCamera();
 });
+window.addEventListener('mouseup',()=>orbit.isDragging=false);
+canvas.addEventListener('wheel',e=>{orbit.radius=Math.max(1.5,Math.min(25,orbit.radius+e.deltaY*0.012));updateCamera();},{passive:true});
+canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){orbit.isDragging=true;orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;}});
+canvas.addEventListener('touchmove',e=>{if(!orbit.isDragging||e.touches.length!==1)return;orbit.theta-=(e.touches[0].clientX-orbit.lastX)*0.008;orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.touches[0].clientY-orbit.lastY)*0.008));orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;updateCamera();});
+canvas.addEventListener('touchend',()=>orbit.isDragging=false);
 
-window.addEventListener('mousemove', e => {
-  if (!orbit.isDragging) return;
-  const dx = e.clientX - orbit.lastX;
-  const dy = e.clientY - orbit.lastY;
-  orbit.theta -= dx * 0.008;
-  orbit.phi   = Math.max(0.1, Math.min(Math.PI - 0.1, orbit.phi + dy * 0.008));
-  orbit.lastX = e.clientX;
-  orbit.lastY = e.clientY;
-  updateCamera();
-});
+// ═══════════════════════════════════════════════
+// SCENE OBJECT POOLS
+// ═══════════════════════════════════════════════
+let strutMeshes=[], cableMeshes=[], nodeMeshes=[], labelSprites=[], domRings=[];
 
-window.addEventListener('mouseup', () => orbit.isDragging = false);
-
-canvas.addEventListener('wheel', e => {
-  orbit.radius = Math.max(1.5, Math.min(20, orbit.radius + e.deltaY * 0.01));
-  updateCamera();
-}, { passive: true });
-
-// Touch support
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 1) {
-    orbit.isDragging = true;
-    orbit.lastX = e.touches[0].clientX;
-    orbit.lastY = e.touches[0].clientY;
-  }
-});
-canvas.addEventListener('touchmove', e => {
-  if (!orbit.isDragging || e.touches.length !== 1) return;
-  const dx = e.touches[0].clientX - orbit.lastX;
-  const dy = e.touches[0].clientY - orbit.lastY;
-  orbit.theta -= dx * 0.008;
-  orbit.phi   = Math.max(0.1, Math.min(Math.PI - 0.1, orbit.phi + dy * 0.008));
-  orbit.lastX = e.touches[0].clientX;
-  orbit.lastY = e.touches[0].clientY;
-  updateCamera();
-});
-canvas.addEventListener('touchend', () => orbit.isDragging = false);
-
-// ──────────────────────────────────────────────
-// SCENE OBJECTS
-// ──────────────────────────────────────────────
-let strutMeshes  = [];
-let cableMeshes  = [];
-let nodeMeshes   = [];
-let labelSprites = [];
-let axesHelper   = null;
-
-function disposeScene() {
-  [...strutMeshes, ...cableMeshes, ...nodeMeshes, ...labelSprites].forEach(obj => {
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      if (Array.isArray(obj.material)) obj.material.forEach(m=>m.dispose());
-      else obj.material.dispose();
-    }
-    scene.remove(obj);
+function disposeAll(){
+  [...strutMeshes,...cableMeshes,...nodeMeshes,...labelSprites,...domRings].forEach(o=>{
+    scene.remove(o);
+    if(o.geometry)o.geometry.dispose();
+    if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}
   });
-  strutMeshes  = [];
-  cableMeshes  = [];
-  nodeMeshes   = [];
-  labelSprites = [];
-  if (axesHelper) { scene.remove(axesHelper); axesHelper = null; }
+  strutMeshes=[];cableMeshes=[];nodeMeshes=[];labelSprites=[];domRings=[];
 }
 
-function buildCylinderBetween(pA, pB, radius, material) {
-  const vA = new THREE.Vector3(...pA);
-  const vB = new THREE.Vector3(...pB);
-  const dir = new THREE.Vector3().subVectors(vB, vA);
-  const len = dir.length();
-  if (len < 0.0001) return null;
-
-  const geo = new THREE.CylinderGeometry(radius, radius, len, 8, 1);
-  const mesh = new THREE.Mesh(geo, material);
-
-  const midpoint = new THREE.Vector3().addVectors(vA, vB).multiplyScalar(0.5);
-  mesh.position.copy(midpoint);
-
-  const axis = new THREE.Vector3(0, 1, 0);
-  const quaternion = new THREE.Quaternion().setFromUnitVectors(axis, dir.normalize());
-  mesh.quaternion.copy(quaternion);
-
+function cylBetween(pA,pB,radius,mat){
+  const vA=new THREE.Vector3(...pA), vB=new THREE.Vector3(...pB);
+  const dir=new THREE.Vector3().subVectors(vB,vA);
+  const len=dir.length(); if(len<1e-8)return null;
+  const geo=new THREE.CylinderGeometry(radius,radius,len,8,1);
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.position.copy(new THREE.Vector3().addVectors(vA,vB).multiplyScalar(0.5));
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
   return mesh;
 }
 
-function makeSpriteLabel(text, pos3d, color = '#d0d6e8') {
-  const cvs = document.createElement('canvas');
-  cvs.width = 256; cvs.height = 64;
-  const ctx = cvs.getContext('2d');
-  ctx.clearRect(0, 0, 256, 64);
-  ctx.fillStyle = 'rgba(13,15,20,0.7)';
-  ctx.roundRect(4, 8, 248, 48, 8);
+function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
+  const cvs=document.createElement('canvas'); cvs.width=256; cvs.height=64;
+  const ctx=cvs.getContext('2d');
+  ctx.fillStyle='rgba(13,15,20,0.75)';
+  if(ctx.roundRect) ctx.roundRect(2,6,252,52,8); else ctx.rect(2,6,252,52);
   ctx.fill();
-  ctx.fillStyle = color;
-  ctx.font = 'bold 20px Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 128, 32);
-
-  const tex = new THREE.CanvasTexture(cvs);
-  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
-  const sprite = new THREE.Sprite(mat);
-  sprite.position.set(pos3d[0], pos3d[1], pos3d[2]);
-  sprite.scale.set(0.7, 0.175, 1);
-  return sprite;
+  ctx.fillStyle=color; ctx.font='bold 18px Inter,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text.length>22?text.slice(0,21)+'…':text,128,32);
+  const tex=new THREE.CanvasTexture(cvs);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+  sp.position.set(...pos); sp.scale.set(scale*1.2,scale*0.3,1);
+  return sp;
 }
 
-// Tension → color
-function tensionColor(t, type) {
-  if (!state.colorTension) return type === 'strut' ? '#e8e8f0' : '#3ecfcf';
-  // t: 0=slack/no load, 1=nominal, 2=max load
-  const clamped = Math.max(0, Math.min(2, t));
-  if (type === 'cable') {
-    if (clamped < 0.3) return '#6b7494';   // slack
-    if (clamped < 0.7) return '#4aa8d8';
-    if (clamped < 1.2) return '#3ecfcf';   // nominal
-    if (clamped < 1.6) return '#f0c060';   // high tension
-    return '#f06060';                       // critical
+// ═══════════════════════════════════════════════
+// TENSION COLOR
+// ═══════════════════════════════════════════════
+function tColor(pct,type,slack=false){
+  if(slack||(type==='cable'&&pct<15)) return '#3a4060';
+  if(!state.colorTension) return type==='strut'?'#e0e0f8':'#3ecfcf';
+  const t=pct/100;
+  if(type==='cable'){
+    if(t<0.3)return '#3a8080'; if(t<0.6)return '#3ab8b8';
+    if(t<0.85)return '#3ecfcf'; if(t<1.2)return '#f0c060'; return '#f06060';
   } else {
-    if (clamped < 0.3) return '#444460';
-    if (clamped < 1.2) return '#b8b8d0';   // nominal
-    if (clamped < 1.6) return '#f0c060';
-    return '#f06060';
+    if(t<0.3)return '#444460'; if(t<0.8)return '#9090b0';
+    if(t<1.3)return '#d0d0f0'; if(t<1.7)return '#f0c060'; return '#f06060';
   }
 }
 
-function hexToColor(hex) {
-  return new THREE.Color(hex);
-}
-
-// ──────────────────────────────────────────────
-// PHYSICS — Velocity Verlet + unilateral constraints
-// ──────────────────────────────────────────────
-function initPhysics(geo) {
-  const { vertices, struts, cables } = geo;
-
-  state.nodes = vertices.map((pos, i) => ({
-    pos: [...pos],
-    vel: [0,0,0],
-    force: [0,0,0],
-    mass: 1.0,
-    pinned: false,
-  }));
-
-  state.springs = [];
-
-  const strutStiffness = 800 * state.compression;
-  const cableStiffness = 600 * state.pretension;
-
-  struts.forEach(([a, b], i) => {
-    const pa = state.nodes[a].pos, pb = state.nodes[b].pos;
-    const dx = pb[0]-pa[0], dy = pb[1]-pa[1], dz = pb[2]-pa[2];
-    const restLen = Math.sqrt(dx*dx+dy*dy+dz*dz);
-    state.springs.push({ a, b, restLen, stiffness: strutStiffness, type: 'strut', idx: i });
+// ═══════════════════════════════════════════════
+// COMPUTE NODE ROLES (dominance detection)
+// ═══════════════════════════════════════════════
+function computeNodeRoles(topo){
+  const nCount=topo.nodes.length;
+  const cableLoad=new Array(nCount).fill(0);
+  const cableCnt=new Array(nCount).fill(0);
+  topo.cables.forEach(c=>{
+    const load=c.slack?0:(c.tensionPct||100)/100;
+    cableLoad[c.nodes[0]]+=load; cableLoad[c.nodes[1]]+=load;
+    cableCnt[c.nodes[0]]++; cableCnt[c.nodes[1]]++;
   });
-
-  cables.forEach(([a, b], i) => {
-    const pa = state.nodes[a].pos, pb = state.nodes[b].pos;
-    const dx = pb[0]-pa[0], dy = pb[1]-pa[1], dz = pb[2]-pa[2];
-    const restLen = Math.sqrt(dx*dx+dy*dy+dz*dz);
-    state.springs.push({ a, b, restLen, stiffness: cableStiffness, type: 'cable', idx: i });
-  });
-}
-
-function physicsStep(dt = 0.016) {
-  const nodes   = state.nodes;
-  const springs = state.springs;
-  const damp    = state.damping;
-  const preten  = state.pretension;
-  const compres = state.compression;
-
-  nodes.forEach(n => { n.force = [0,0,0]; });
-
-  springs.forEach(sp => {
-    const na = nodes[sp.a], nb = nodes[sp.b];
-    const dx = nb.pos[0]-na.pos[0];
-    const dy = nb.pos[1]-na.pos[1];
-    const dz = nb.pos[2]-na.pos[2];
-    const len = Math.sqrt(dx*dx+dy*dy+dz*dz);
-    if (len < 1e-8) return;
-
-    const ext = len - sp.restLen;
-    let force = 0;
-
-    if (sp.type === 'cable') {
-      const effectiveRest = sp.restLen / preten;
-      const extEff = len - effectiveRest;
-      if (extEff > 0) force = sp.stiffness * extEff;
-    } else {
-      const effectiveRest = sp.restLen * compres;
-      const extEff = len - effectiveRest;
-      if (extEff < 0) force = sp.stiffness * extEff;
+  const maxLoad=Math.max(...cableLoad,0.01);
+  topo.nodes.forEach((n,i)=>{
+    n.tensionLoad=cableLoad[i]; n.connectedCables=cableCnt[i];
+    if(n.role!=='isolated'){
+      n.role = cableLoad[i]>maxLoad*0.7 ? 'dominant' : 'normal';
     }
-
-    sp.currentForce = Math.abs(force);
-    sp.currentLen   = len;
-
-    const invLen = 1/len;
-    const fx = force * dx * invLen;
-    const fy = force * dy * invLen;
-    const fz = force * dz * invLen;
-
-    if (!na.pinned) { na.force[0]+=fx; na.force[1]+=fy; na.force[2]+=fz; }
-    if (!nb.pinned) { nb.force[0]-=fx; nb.force[1]-=fy; nb.force[2]-=fz; }
-  });
-
-  // Center of mass correction — keep structure from drifting
-  let cx=0, cy=0, cz=0;
-  nodes.forEach(n => { cx+=n.pos[0]; cy+=n.pos[1]; cz+=n.pos[2]; });
-  cx/=nodes.length; cy/=nodes.length; cz/=nodes.length;
-
-  nodes.forEach(n => {
-    if (n.pinned) return;
-    n.vel[0] = (n.vel[0] + n.force[0]*dt/n.mass) * (1-damp);
-    n.vel[1] = (n.vel[1] + n.force[1]*dt/n.mass) * (1-damp);
-    n.vel[2] = (n.vel[2] + n.force[2]*dt/n.mass) * (1-damp);
-    n.pos[0] += n.vel[0]*dt;
-    n.pos[1] += n.vel[1]*dt;
-    n.pos[2] += n.vel[2]*dt;
-    // recenter
-    n.pos[0] -= cx; n.pos[1] -= cy; n.pos[2] -= cz;
   });
 }
 
-// ──────────────────────────────────────────────
-// BUILD SCENE FROM GEOMETRY
-// ──────────────────────────────────────────────
-function buildScene() {
-  disposeScene();
+// ═══════════════════════════════════════════════
+// PHYSICS INIT + STEP
+// ═══════════════════════════════════════════════
+function initPhysics(topo){
+  state.simNodes=topo.nodes.map(n=>({
+    pos:[...n.pos], vel:[0,0,0], force:[0,0,0], mass:1.0, pinned:false
+  }));
+  state.simSprings=[];
+  topo.struts.forEach((s,i)=>{
+    const [a,b]=s.nodes;
+    const pa=state.simNodes[a].pos, pb=state.simNodes[b].pos;
+    const d=pb.map((v,j)=>v-pa[j]);
+    const rL=Math.sqrt(d.reduce((acc,v)=>acc+v*v,0))*(s.restLengthScale||1.0);
+    state.simSprings.push({a,b,restLen:rL,stiffness:800*state.globalCompression,
+      type:'strut',memberIdx:i,currentForce:0});
+  });
+  topo.cables.forEach((c,i)=>{
+    const [a,b]=c.nodes;
+    const pa=state.simNodes[a].pos, pb=state.simNodes[b].pos;
+    const d=pb.map((v,j)=>v-pa[j]);
+    const rL=Math.sqrt(d.reduce((acc,v)=>acc+v*v,0));
+    const effectivePct=(c.tensionPct||100)/100*state.globalPretension;
+    state.simSprings.push({a,b,restLen:rL,stiffness:600*effectivePct,
+      type:'cable',memberIdx:i,slack:c.slack||false,currentForce:0});
+  });
+}
 
-  const geo = GEOMETRIES[state.preset](state.twist, state.aspect, state.scale);
-  state.geometry = geo;
+function physicsStep(dt=0.016){
+  const ns=state.simNodes, sp=state.simSprings, damp=state.damping;
+  ns.forEach(n=>n.force=[0,0,0]);
+  sp.forEach(s=>{
+    const na=ns[s.a], nb=ns[s.b];
+    const dx=nb.pos[0]-na.pos[0], dy=nb.pos[1]-na.pos[1], dz=nb.pos[2]-na.pos[2];
+    const len=Math.sqrt(dx*dx+dy*dy+dz*dz); if(len<1e-8)return;
+    const ext=len-s.restLen; let force=0;
+    if(s.type==='cable'&&!s.slack&&ext>0) force=s.stiffness*ext;
+    else if(s.type==='strut'&&ext<0) force=s.stiffness*ext;
+    s.currentForce=Math.abs(force);
+    const invLen=1/len, fx=force*dx*invLen, fy=force*dy*invLen, fz=force*dz*invLen;
+    if(!na.pinned){na.force[0]+=fx;na.force[1]+=fy;na.force[2]+=fz;}
+    if(!nb.pinned){nb.force[0]-=fx;nb.force[1]-=fy;nb.force[2]-=fz;}
+  });
+  let cx=0,cy=0,cz=0;
+  ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
+  cx/=ns.length; cy/=ns.length; cz/=ns.length;
+  ns.forEach(n=>{
+    if(n.pinned)return;
+    n.vel[0]=(n.vel[0]+n.force[0]*dt/n.mass)*(1-damp);
+    n.vel[1]=(n.vel[1]+n.force[1]*dt/n.mass)*(1-damp);
+    n.vel[2]=(n.vel[2]+n.force[2]*dt/n.mass)*(1-damp);
+    n.pos[0]+=n.vel[0]*dt-cx;
+    n.pos[1]+=n.vel[1]*dt-cy;
+    n.pos[2]+=n.vel[2]*dt-cz;
+  });
+  // sync tension back to topology
+  const topo=state.topology;
+  sp.forEach(s=>{
+    if(s.type==='strut') topo.struts[s.memberIdx].currentForce=s.currentForce;
+    else topo.cables[s.memberIdx].currentForce=s.currentForce;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// BUILD / REBUILD SCENE
+// ═══════════════════════════════════════════════
+function buildScene(){
+  const geo=PRESETS[state.preset](state.twist,state.aspect,state.scale);
+  state.topology=geo;
+  computeNodeRoles(geo);
   initPhysics(geo);
-
-  // Ensure default labels exist
-  geo.struts.forEach((_, i) => {
-    if (!state.labels.struts[i]) state.labels.struts[i] = `Strut ${i+1}`;
-  });
-  geo.cables.forEach((_, i) => {
-    if (!state.labels.cables[i]) state.labels.cables[i] = `Cable ${i+1}`;
-  });
-
   rebuildMeshes();
-  updateStatPanel();
-  updateLabelsList();
-  updateHealthScore();
-  updateTensionMap();
+  refreshMembersTab();
+  updateAnalysis();
   updateOverlay();
 }
 
-function rebuildMeshes() {
-  // Remove old
-  [...strutMeshes,...cableMeshes,...nodeMeshes,...labelSprites].forEach(o => {
-    scene.remove(o);
-    if (o.geometry) o.geometry.dispose();
-    if (o.material) { if(Array.isArray(o.material)) o.material.forEach(m=>m.dispose()); else o.material.dispose(); }
-  });
-  strutMeshes=[]; cableMeshes=[]; nodeMeshes=[]; labelSprites=[];
+function loadCustomTopology(json){
+  try{
+    const data=JSON.parse(json);
+    const topo=data.topology||data;
+    // Validate
+    if(!topo.nodes||!topo.struts||!topo.cables) throw new Error('Missing nodes/struts/cables');
 
-  const geo = state.geometry;
-  const nodes = state.nodes;
+    const nds=topo.nodes.map((n,i)=>({
+      id:i, label:n.label||`N${i}`, pos:n.pos||[0,0,0], role:n.role||'normal',
+      tensionLoad:0, connectedCables:0
+    }));
+    const sts=topo.struts.map((s,i)=>({
+      id:i, nodes:s.nodes, label:s.label||`Strut ${i+1}`,
+      score:s.score||null, restLengthScale:s.restLengthScale||1.0,
+      tensionPct:s.tensionPct||100, currentForce:0
+    }));
+    const cbs=topo.cables.map((c,i)=>({
+      id:i, nodes:c.nodes, label:c.label||`Cable ${i+1}`,
+      group:c.group||'', tensionPct:c.tensionPct||100,
+      slack:c.slack||false, currentForce:0
+    }));
+
+    const sym = data.parameters?.symmetry||topo.symmetry||'Custom (asymmetric)';
+    const customTopo={
+      nodes:nds, struts:sts, cables:cbs,
+      symmetry:sym, name:data.geometry||'Custom Topology',
+      description:`${sts.length} struts, ${cbs.length} cables`,
+      isCustom:true
+    };
+
+    // deactivate all preset buttons
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+
+    state.topology=customTopo;
+    if(data.organization) {
+      state.orgName=data.organization;
+      document.getElementById('orgName').value=state.orgName;
+    }
+    computeNodeRoles(customTopo);
+    initPhysics(customTopo);
+    rebuildMeshes();
+    refreshMembersTab();
+    updateAnalysis();
+    updateOverlay();
+
+    // Scale camera to fit
+    const allPos=customTopo.nodes.map(n=>n.pos);
+    const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
+    const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs));
+    orbit.radius=span*1.8+3;
+    updateCamera();
+
+    return {ok:true, msg:`Loaded: ${customTopo.nodes.length} nodes, ${sts.length} struts, ${cbs.length} cables`};
+  } catch(e){
+    return {ok:false, msg:e.message};
+  }
+}
+
+function rebuildMeshes(){
+  disposeAll();
+  const topo=state.topology;
+  const ns=state.simNodes;
 
   // Struts
-  geo.struts.forEach(([a,b], i) => {
-    const force = state.springs.find(s=>s.type==='strut'&&s.idx===i)?.currentForce || 0;
-    const t = force > 0 ? (force/(800*state.compression*0.5)) : 1.0;
-    const col = tensionColor(t, 'strut');
-    const mat = new THREE.MeshPhongMaterial({
-      color: hexToColor(col),
-      shininess: 80,
-      specular: new THREE.Color(0.4,0.4,0.5),
-    });
-    const mesh = buildCylinderBetween(nodes[a].pos, nodes[b].pos, 0.04, mat);
-    if (mesh) {
-      mesh.userData = { type:'strut', idx:i };
-      scene.add(mesh);
-      strutMeshes.push(mesh);
-    }
+  topo.struts.forEach((s,i)=>{
+    const [a,b]=s.nodes;
+    if(a>=ns.length||b>=ns.length)return;
+    const pct=s.tensionPct||100;
+    const col=tColor(pct,'strut');
+    const mat=new THREE.MeshPhongMaterial({color:new THREE.Color(col),shininess:80,specular:new THREE.Color(0.4,0.4,0.5)});
+    const m=cylBetween(ns[a].pos,ns[b].pos,0.05,mat);
+    if(m){m.userData={type:'strut',idx:i};scene.add(m);strutMeshes.push(m);}
   });
 
   // Cables
-  geo.cables.forEach(([a,b], i) => {
-    const sp = state.springs.find(s=>s.type==='cable'&&s.idx===i);
-    const forceVal = sp?.currentForce || 0;
-    const t = forceVal > 0 ? (forceVal/(600*state.pretension*0.3)) : 0.8;
-    const col = tensionColor(t, 'cable');
-    const mat = new THREE.LineBasicMaterial({ color: hexToColor(col), linewidth: 1.5 });
-    const points = [
-      new THREE.Vector3(...nodes[a].pos),
-      new THREE.Vector3(...nodes[b].pos),
-    ];
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(lineGeo, mat);
-    line.userData = { type:'cable', idx:i };
-    scene.add(line);
-    cableMeshes.push(line);
+  topo.cables.forEach((c,i)=>{
+    const [a,b]=c.nodes;
+    if(a>=ns.length||b>=ns.length)return;
+    const col=tColor(c.tensionPct,'cable',c.slack);
+    const mat=new THREE.LineBasicMaterial({color:new THREE.Color(col),linewidth:c.slack?0.5:1.5});
+    const pts=[new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)];
+    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
+    line.userData={type:'cable',idx:i};
+    scene.add(line); cableMeshes.push(line);
   });
 
   // Nodes
-  if (state.showNodes) {
-    nodes.forEach((n, i) => {
-      const geo2 = new THREE.SphereGeometry(0.055, 12, 8);
-      const mat  = new THREE.MeshPhongMaterial({ color: new THREE.Color(0.5,0.7,1.0), shininess:100 });
-      const mesh = new THREE.Mesh(geo2, mat);
-      mesh.position.set(...n.pos);
-      mesh.userData = { type:'node', idx:i };
-      scene.add(mesh);
-      nodeMeshes.push(mesh);
+  if(state.showNodes){
+    topo.nodes.forEach((n,i)=>{
+      if(i>=ns.length)return;
+      let nodeColor=new THREE.Color(0.4,0.6,1.0);
+      let nodeRadius=0.055;
+      if(state.showDominance){
+        if(n.role==='dominant'){nodeColor=new THREE.Color(0.94,0.37,0.37);nodeRadius=0.08;}
+        else if(n.role==='isolated'){nodeColor=new THREE.Color(0.94,0.75,0.38);nodeRadius=0.07;}
+      }
+      const geo2=new THREE.SphereGeometry(nodeRadius,14,9);
+      const mat2=new THREE.MeshPhongMaterial({color:nodeColor,shininess:120});
+      const mesh=new THREE.Mesh(geo2,mat2);
+      mesh.position.set(...ns[i].pos);
+      mesh.userData={type:'node',idx:i};
+      scene.add(mesh); nodeMeshes.push(mesh);
+
+      // Dominance ring
+      if(state.showDominance&&n.role==='dominant'){
+        const rg=new THREE.TorusGeometry(nodeRadius*1.8,0.012,8,32);
+        const rm=new THREE.MeshBasicMaterial({color:0xf06060,transparent:true,opacity:0.5});
+        const ring=new THREE.Mesh(rg,rm);
+        ring.position.set(...ns[i].pos);
+        scene.add(ring); domRings.push(ring);
+      }
     });
   }
 
   // Labels
-  if (state.showLabels) {
-    state.geometry.struts.forEach(([a,b], i) => {
-      const label = state.labels.struts[i] || `S${i+1}`;
-      if (!label || label === `Strut ${i+1}`) return; // skip default labels to avoid clutter
-      const na = state.nodes[a], nb = state.nodes[b];
-      const mid = [(na.pos[0]+nb.pos[0])/2, (na.pos[1]+nb.pos[1])/2+0.15, (na.pos[2]+nb.pos[2])/2];
-      const sp = makeSpriteLabel(label, mid, '#e0e0f8');
-      scene.add(sp);
-      labelSprites.push(sp);
+  if(state.showLabels){
+    topo.struts.forEach((s,i)=>{
+      const lbl=s.label; if(!lbl||lbl===`Strut ${i+1}`)return;
+      const [a,b]=s.nodes; if(a>=ns.length||b>=ns.length)return;
+      const mid=[(ns[a].pos[0]+ns[b].pos[0])/2,(ns[a].pos[1]+ns[b].pos[1])/2+0.18,(ns[a].pos[2]+ns[b].pos[2])/2];
+      const sp=makeLabel(lbl,mid,'#c8c8e8');
+      scene.add(sp); labelSprites.push(sp);
     });
-    state.geometry.cables.forEach(([a,b], i) => {
-      const label = state.labels.cables[i];
-      if (!label || label === `Cable ${i+1}`) return;
-      const na = state.nodes[a], nb = state.nodes[b];
-      const mid = [(na.pos[0]+nb.pos[0])/2, (na.pos[1]+nb.pos[1])/2+0.08, (na.pos[2]+nb.pos[2])/2];
-      const sp = makeSpriteLabel(label, mid, '#80f0f0');
-      scene.add(sp);
-      labelSprites.push(sp);
-    });
-  }
-
-  // Axes
-  if (state.showAxes) {
-    axesHelper = new THREE.AxesHelper(state.scale * 1.5);
-    scene.add(axesHelper);
-  }
-}
-
-function updateMeshPositions() {
-  const nodes = state.nodes;
-  const geo   = state.geometry;
-
-  // Struts
-  strutMeshes.forEach((mesh, i) => {
-    if (i >= geo.struts.length) return;
-    const [a,b] = geo.struts[i];
-    const sp = state.springs.find(s=>s.type==='strut'&&s.idx===i);
-    const forceVal = sp?.currentForce || 0;
-    const t = forceVal > 0 ? forceVal/(800*state.compression*0.5) : 1.0;
-    const col = tensionColor(t, 'strut');
-    mesh.material.color.set(hexToColor(col));
-
-    const vA = new THREE.Vector3(...nodes[a].pos);
-    const vB = new THREE.Vector3(...nodes[b].pos);
-    const dir = new THREE.Vector3().subVectors(vB, vA);
-    const len = dir.length();
-    if (len < 1e-8) return;
-
-    mesh.position.copy(new THREE.Vector3().addVectors(vA,vB).multiplyScalar(0.5));
-    mesh.scale.y = len / (mesh.geometry.parameters.height || 1);
-    const axis = new THREE.Vector3(0,1,0);
-    mesh.quaternion.setFromUnitVectors(axis, dir.normalize());
-  });
-
-  // Cables
-  cableMeshes.forEach((line, i) => {
-    if (i >= geo.cables.length) return;
-    const [a,b] = geo.cables[i];
-    const sp = state.springs.find(s=>s.type==='cable'&&s.idx===i);
-    const forceVal = sp?.currentForce || 0;
-    const t = forceVal > 0 ? forceVal/(600*state.pretension*0.3) : 0.8;
-    const col = tensionColor(t, 'cable');
-    line.material.color.set(hexToColor(col));
-
-    const pts = [
-      new THREE.Vector3(...nodes[a].pos),
-      new THREE.Vector3(...nodes[b].pos),
-    ];
-    line.geometry.setFromPoints(pts);
-  });
-
-  // Nodes
-  if (state.showNodes) {
-    nodeMeshes.forEach((mesh, i) => {
-      if (i < nodes.length) mesh.position.set(...nodes[i].pos);
-    });
-  }
-
-  // Labels follow midpoints
-  if (state.showLabels) {
-    let li = 0;
-    geo.struts.forEach(([a,b], i) => {
-      const label = state.labels.struts[i];
-      if (!label || label === `Strut ${i+1}`) return;
-      if (li < labelSprites.length) {
-        const na = nodes[a], nb = nodes[b];
-        labelSprites[li].position.set(
-          (na.pos[0]+nb.pos[0])/2,
-          (na.pos[1]+nb.pos[1])/2+0.15,
-          (na.pos[2]+nb.pos[2])/2
-        );
-        li++;
-      }
-    });
-    geo.cables.forEach(([a,b], i) => {
-      const label = state.labels.cables[i];
-      if (!label || label === `Cable ${i+1}`) return;
-      if (li < labelSprites.length) {
-        const na = nodes[a], nb = nodes[b];
-        labelSprites[li].position.set(
-          (na.pos[0]+nb.pos[0])/2,
-          (na.pos[1]+nb.pos[1])/2+0.08,
-          (na.pos[2]+nb.pos[2])/2
-        );
-        li++;
-      }
+    topo.cables.forEach((c,i)=>{
+      const lbl=c.label; if(!lbl||lbl===`Cable ${i+1}`)return;
+      const [a,b]=c.nodes; if(a>=ns.length||b>=ns.length)return;
+      const col=c.slack?'#3a4060':'#60d0d0';
+      const mid=[(ns[a].pos[0]+ns[b].pos[0])/2,(ns[a].pos[1]+ns[b].pos[1])/2+0.08,(ns[a].pos[2]+ns[b].pos[2])/2];
+      const sp=makeLabel(lbl,mid,col,0.5);
+      scene.add(sp); labelSprites.push(sp);
     });
   }
 }
 
-// ──────────────────────────────────────────────
-// RAYCASTING — click to select
-// ──────────────────────────────────────────────
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+function updateMeshPositions(){
+  const topo=state.topology; const ns=state.simNodes;
 
-canvas.addEventListener('click', e => {
-  if (orbit.isDragging) return;
-  const rect = canvas.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-  mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
+  strutMeshes.forEach((m,i)=>{
+    if(i>=topo.struts.length)return;
+    const [a,b]=topo.struts[i].nodes; if(a>=ns.length||b>=ns.length)return;
+    const vA=new THREE.Vector3(...ns[a].pos), vB=new THREE.Vector3(...ns[b].pos);
+    const dir=new THREE.Vector3().subVectors(vB,vA); const len=dir.length();
+    if(len<1e-8)return;
+    const pct=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===i)?.currentForce||0;
+    m.material.color.set(new THREE.Color(tColor(pct,'strut')));
+    m.position.copy(new THREE.Vector3().addVectors(vA,vB).multiplyScalar(0.5));
+    m.scale.y=len/(m.geometry.parameters.height||1);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
+  });
 
-  const allMeshes = [...strutMeshes, ...nodeMeshes];
-  const intersects = raycaster.intersectObjects(allMeshes);
-  if (intersects.length > 0) {
-    const obj = intersects[0].object;
-    if (obj.userData.type === 'strut' || obj.userData.type === 'node') {
-      selectElement(obj.userData.type, obj.userData.idx);
+  cableMeshes.forEach((line,i)=>{
+    if(i>=topo.cables.length)return;
+    const c=topo.cables[i]; const [a,b]=c.nodes; if(a>=ns.length||b>=ns.length)return;
+    // Update per-member tension pct from sim
+    const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===i);
+    const rawForce=sp?.currentForce||0;
+    const effectivePct=rawForce>0?(rawForce/(600*0.3))*100:c.tensionPct;
+    line.material.color.set(new THREE.Color(tColor(effectivePct,'cable',c.slack)));
+    line.geometry.setFromPoints([new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)]);
+  });
+
+  nodeMeshes.forEach((m,i)=>{
+    if(i<ns.length) m.position.set(...ns[i].pos);
+  });
+
+  domRings.forEach((ring,i)=>{
+    // align to camera face
+    const domNodes=topo.nodes.filter(n=>n.role==='dominant');
+    if(i<domNodes.length){
+      const ni=domNodes[i].id; if(ni<ns.length) ring.position.set(...ns[ni].pos);
+      ring.quaternion.copy(camera.quaternion);
     }
+  });
+
+  // label positions
+  if(state.showLabels){
+    let li=0;
+    topo.struts.forEach((s,i)=>{
+      const lbl=s.label; if(!lbl||lbl===`Strut ${i+1}`)return;
+      const [a,b]=s.nodes; if(a>=ns.length||b>=ns.length||li>=labelSprites.length)return;
+      labelSprites[li].position.set((ns[a].pos[0]+ns[b].pos[0])/2,(ns[a].pos[1]+ns[b].pos[1])/2+0.18,(ns[a].pos[2]+ns[b].pos[2])/2);
+      li++;
+    });
+    topo.cables.forEach((c,i)=>{
+      const lbl=c.label; if(!lbl||lbl===`Cable ${i+1}`)return;
+      const [a,b]=c.nodes; if(a>=ns.length||b>=ns.length||li>=labelSprites.length)return;
+      labelSprites[li].position.set((ns[a].pos[0]+ns[b].pos[0])/2,(ns[a].pos[1]+ns[b].pos[1])/2+0.08,(ns[a].pos[2]+ns[b].pos[2])/2);
+      li++;
+    });
   }
+}
+
+// ═══════════════════════════════════════════════
+// RAYCASTING
+// ═══════════════════════════════════════════════
+const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
+canvas.addEventListener('click',e=>{
+  if(orbit.isDragging)return;
+  const rect=canvas.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects([...strutMeshes,...nodeMeshes]);
+  if(hits.length>0) selectMember(hits[0].object.userData.type,hits[0].object.userData.idx);
 });
 
-function selectElement(type, idx) {
-  state.selectedType = type;
-  state.selectedIdx  = idx;
-
-  const infoPanel = document.getElementById('selected-info');
-  infoPanel.style.display = 'block';
-
-  if (type === 'strut') {
-    const label = state.labels.struts[idx] || `Strut ${idx+1}`;
-    const sp    = state.springs.find(s=>s.type==='strut'&&s.idx===idx);
-    document.getElementById('sel-type').textContent  = 'COMPRESSION MEMBER';
-    document.getElementById('sel-name').textContent  = label;
-    document.getElementById('sel-detail').innerHTML  =
-      `Index: S${idx+1}<br>Rest length: ${sp?.restLen.toFixed(3)||'—'}<br>Load: ${sp?.currentForce?.toFixed(2)||'0'}`;
-  } else if (type === 'cable') {
-    const label = state.labels.cables[idx] || `Cable ${idx+1}`;
-    const sp    = state.springs.find(s=>s.type==='cable'&&s.idx===idx);
-    document.getElementById('sel-type').textContent  = 'TENSION MEMBER';
-    document.getElementById('sel-name').textContent  = label;
-    document.getElementById('sel-detail').innerHTML  =
-      `Index: C${idx+1}<br>Rest length: ${sp?.restLen.toFixed(3)||'—'}<br>Tension: ${sp?.currentForce?.toFixed(2)||'0'}`;
-  } else if (type === 'node') {
-    document.getElementById('sel-type').textContent  = 'NODE';
-    document.getElementById('sel-name').textContent  = `Node ${idx+1}`;
-    document.getElementById('sel-detail').innerHTML  =
-      `Position: (${state.nodes[idx]?.pos.map(v=>v.toFixed(2)).join(', ')})`;
+function selectMember(type,idx){
+  state.selectedType=type; state.selectedIdx=idx;
+  const info=document.getElementById('selected-info');
+  info.style.display='block';
+  const topo=state.topology;
+  if(type==='strut'){
+    const s=topo.struts[idx];
+    document.getElementById('sel-type').textContent='COMPRESSION MEMBER';
+    document.getElementById('sel-name').textContent=s.label||`Strut ${idx+1}`;
+    document.getElementById('sel-detail').innerHTML=
+      `Score: ${s.score!=null?s.score+'/10':'—'}<br>Rest scale: ${s.restLengthScale||1.0}<br>Force: ${s.currentForce?.toFixed(2)||'0'}`;
+  } else if(type==='cable'){
+    const c=topo.cables[idx];
+    document.getElementById('sel-type').textContent='TENSION MEMBER';
+    document.getElementById('sel-name').textContent=c.label||`Cable ${idx+1}`;
+    document.getElementById('sel-detail').innerHTML=
+      `Tension: ${c.tensionPct}%<br>Group: ${c.group||'—'}<br>Slack: ${c.slack?'yes':'no'}<br>Force: ${c.currentForce?.toFixed(2)||'0'}`;
+  } else if(type==='node'){
+    const n=topo.nodes[idx];
+    document.getElementById('sel-type').textContent='NODE';
+    document.getElementById('sel-name').textContent=n.label||`N${idx}`;
+    document.getElementById('sel-detail').innerHTML=
+      `Role: ${n.role}<br>Cables: ${n.connectedCables}<br>Load: ${n.tensionLoad?.toFixed(2)||'—'}`;
   }
 }
 
-// ──────────────────────────────────────────────
-// ANALYSIS PANEL UPDATES
-// ──────────────────────────────────────────────
-const POC_CLASSES = [
-  { name:'Class 1 · Fully Prestressed',    minH:80, desc:'All governance functions load-bearing. Strong accountability and independence throughout.' },
-  { name:'Class 2 · Partial Prestress',    minH:60, desc:'Most connections active. Mild tension loss in peripheral cables.' },
-  { name:'Class 3 · Strategic Compression',minH:45, desc:'Deliberate compression by founding or dominant entity. Functional but centralized.' },
-  { name:'Class 4 · Tension Loss',         minH:30, desc:'Multiple tension cables gone slack involuntarily. Accountability gaps present.' },
-  { name:'Class 5 · Isolation',            minH:18, desc:'One governance node fully disconnected from the tension network.' },
-  { name:'Class 6 · Cascade Failure',      minH:8,  desc:'Multiple nodes disconnected. Structural integrity at risk.' },
-  { name:'Class 7 · Collapse / Dissolution',minH:0, desc:'Structural integrity lost. Coordination fabric dissolved.' },
+// ═══════════════════════════════════════════════
+// MEMBERS TAB — per-member controls
+// ═══════════════════════════════════════════════
+function refreshMembersTab(){
+  const topo=state.topology;
+  const sL=document.getElementById('strut-list');
+  const cL=document.getElementById('cable-list');
+  sL.innerHTML=''; cL.innerHTML='';
+
+  topo.struts.forEach((s,i)=>{
+    const item=document.createElement('div');
+    item.className='member-item';
+    item.innerHTML=`
+      <div class="member-header">
+        <div class="member-dot strut"></div>
+        <span class="member-name" id="sname-${i}">${s.label}</span>
+        <span class="member-score" style="color:${s.score!=null?(s.score>=7?'#3ecfcf':s.score>=4?'#f0c060':'#f06060'):'#6b7494'}">${s.score!=null?s.score+'/10':'—'}</span>
+        <button class="btn sm" onclick="toggleMemberExpand(this,'strut-ctrl-${i}')">▾</button>
+      </div>
+      <div class="member-controls" id="strut-ctrl-${i}" style="display:none">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Label</span>
+          </div>
+          <input type="text" class="org-input" style="font-size:10px;padding:3px 7px;margin-bottom:5px" value="${s.label}" 
+            onchange="renameStrut(${i},this.value)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Rest Length Scale</span>
+            <span class="slider-value" id="sscale-val-${i}">${(s.restLengthScale||1).toFixed(2)}</span>
+          </div>
+          <input type="range" min="0.5" max="2.5" step="0.05" value="${s.restLengthScale||1}"
+            oninput="updateStrutScale(${i},parseFloat(this.value));document.getElementById('sscale-val-${i}').textContent=parseFloat(this.value).toFixed(2)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Score (PoC)</span>
+            <span class="slider-value" id="sscore-val-${i}">${s.score!=null?s.score:'—'}</span>
+          </div>
+          <input type="range" min="0" max="10" step="1" value="${s.score||0}"
+            oninput="updateStrutScore(${i},parseInt(this.value));document.getElementById('sscore-val-${i}').textContent=this.value" />
+        </div>
+      </div>`;
+    item.addEventListener('click',e=>{if(e.target.tagName==='BUTTON')return;selectMember('strut',i);item.classList.toggle('selected');});
+    sL.appendChild(item);
+  });
+
+  topo.cables.forEach((c,i)=>{
+    const item=document.createElement('div');
+    item.className=`member-item${c.slack?' slack':''}`;
+    const dotClass=c.slack?'cable slack':c.tensionPct>70?'cable dominant':'cable';
+    item.innerHTML=`
+      <div class="member-header">
+        <div class="member-dot ${dotClass}"></div>
+        <span class="member-name" id="cname-${i}">${c.label}</span>
+        <span class="member-score" style="color:${c.slack?'#3a4060':'#3ecfcf'}">${c.slack?'slack':c.tensionPct+'%'}</span>
+        <button class="btn sm" onclick="toggleMemberExpand(this,'cable-ctrl-${i}')">▾</button>
+      </div>
+      <div class="member-controls" id="cable-ctrl-${i}" style="display:none">
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Label</span></div>
+          <input type="text" class="org-input" style="font-size:10px;padding:3px 7px;margin-bottom:5px" value="${c.label}"
+            onchange="renameCable(${i},this.value)" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Tension %</span>
+            <span class="slider-value" id="ctens-val-${i}" style="color:${c.slack?'#3a4060':'#3ecfcf'}">${c.tensionPct}%</span>
+          </div>
+          <input type="range" min="0" max="200" step="1" value="${c.tensionPct}"
+            oninput="updateCableTension(${i},parseInt(this.value));document.getElementById('ctens-val-${i}').textContent=this.value+'%'" />
+        </div>
+        <div class="toggle-row" style="margin-top:4px">
+          <span class="slider-label">Mark as slack</span>
+          <label class="toggle-switch"><input type="checkbox" ${c.slack?'checked':''} onchange="updateCableSlack(${i},this.checked)"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+        </div>
+        <div class="slider-row" style="margin-top:5px">
+          <div class="slider-header"><span class="slider-label">Group tag</span></div>
+          <input type="text" class="org-input" style="font-size:10px;padding:3px 7px" value="${c.group||''}" placeholder="e.g. generative-1"
+            onchange="updateCableGroup(${i},this.value)" />
+        </div>
+      </div>`;
+    item.addEventListener('click',e=>{if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT'||e.target.type==='checkbox')return;selectMember('cable',i);item.classList.toggle('selected');});
+    cL.appendChild(item);
+  });
+}
+
+function toggleMemberExpand(btn,ctrlId){
+  const el=document.getElementById(ctrlId);
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'block':'none';
+  btn.textContent=el.style.display==='none'?'▾':'▴';
+}
+
+function renameStrut(idx,val){
+  state.topology.struts[idx].label=val||`Strut ${idx+1}`;
+  rebuildMeshes();
+}
+function renameCable(idx,val){
+  state.topology.cables[idx].label=val||`Cable ${idx+1}`;
+  rebuildMeshes();
+}
+function updateStrutScale(idx,val){
+  state.topology.struts[idx].restLengthScale=val;
+  const sp=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===idx);
+  if(sp){
+    const [a,b]=state.topology.struts[idx].nodes;
+    const pa=state.simNodes[a].pos, pb=state.simNodes[b].pos;
+    const d=pb.map((v,j)=>v-pa[j]);
+    sp.restLen=Math.sqrt(d.reduce((acc,v)=>acc+v*v,0))*val;
+  }
+}
+function updateStrutScore(idx,val){
+  state.topology.struts[idx].score=val;
+  updateAnalysis();
+}
+function updateCableTension(idx,val){
+  state.topology.cables[idx].tensionPct=val;
+  const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===idx);
+  if(sp) sp.stiffness=600*(val/100)*state.globalPretension;
+  computeNodeRoles(state.topology);
+  updateAnalysis();
+}
+function updateCableSlack(idx,val){
+  state.topology.cables[idx].slack=val;
+  const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===idx);
+  if(sp) sp.slack=val;
+  computeNodeRoles(state.topology);
+  rebuildMeshes(); refreshMembersTab(); updateAnalysis();
+}
+function updateCableGroup(idx,val){
+  state.topology.cables[idx].group=val;
+}
+
+// ═══════════════════════════════════════════════
+// ANALYSIS
+// ═══════════════════════════════════════════════
+const POC_CLASSES=[
+  {name:'Class 1 · Fully Prestressed',minH:80,desc:'All governance functions load-bearing. Strong accountability and independence throughout. All cables taut, distributed tension network intact.'},
+  {name:'Class 2 · Partial Prestress',minH:60,desc:'Most connections active. Mild tension loss in peripheral cables. Common in healthy established DAOs.'},
+  {name:'Class 3 · Strategic Compression',minH:45,desc:'Deliberate compression by founding or dominant entity. Functional but centralized — intentional structure rather than failure.'},
+  {name:'Class 4 · Tension Loss',minH:30,desc:'Multiple tension cables gone slack involuntarily. Accountability gaps present across governance functions.'},
+  {name:'Class 5 · Isolation',minH:18,desc:'One governance node fully disconnected from tension network. Loss of distributed coordination visible in geometry.'},
+  {name:'Class 6 · Cascade Failure',minH:8,desc:'Multiple nodes disconnected. Structural integrity at risk. Single-node dominance with slack lateral cables — the Across Protocol pattern.'},
+  {name:'Class 7 · Collapse / Dissolution',minH:0,desc:'Structural integrity lost. Coordination fabric dissolved. No meaningful tension distribution remains.'},
 ];
 
-function computeHealthScore() {
-  if (!state.geometry) return 87;
-  const numStruts = state.geometry.struts.length;
-  const numCables = state.geometry.cables.length;
-  const ratio = numCables / Math.max(numStruts, 1);
-  const pretensionFactor = Math.min(state.pretension, 1) * 50;
-  const compressionFactor = Math.min(state.compression, 1) * 30;
-  const ratioBonus = Math.min(ratio / 6, 1) * 20;
-  const score = Math.round(pretensionFactor + compressionFactor + ratioBonus);
-  return Math.max(0, Math.min(100, score));
+function computeHealthScore(){
+  const topo=state.topology; if(!topo)return 87;
+  const nS=topo.struts.length, nC=topo.cables.length;
+  const slackCount=topo.cables.filter(c=>c.slack).length;
+  const activeCables=nC-slackCount;
+  const avgTension=activeCables>0?topo.cables.filter(c=>!c.slack).reduce((a,c)=>a+(c.tensionPct||100),0)/activeCables:0;
+  // convergence: % of tension load on single most-loaded node
+  const nodeLoad=new Array(topo.nodes.length).fill(0);
+  topo.cables.forEach(c=>{if(!c.slack){nodeLoad[c.nodes[0]]+=c.tensionPct||100;nodeLoad[c.nodes[1]]+=c.tensionPct||100;}});
+  const totalLoad=nodeLoad.reduce((a,v)=>a+v,0);
+  const maxNodeLoad=Math.max(...nodeLoad,0);
+  const convergenceRatio=totalLoad>0?maxNodeLoad/totalLoad:0; // 1 = all through one node
+  const slackPenalty=(slackCount/Math.max(nC,1))*30;
+  const convergencePenalty=convergenceRatio*25;
+  const tensionScore=(avgTension/200)*40;
+  const ratioBonus=Math.min((activeCables/Math.max(nS,1))/8,1)*30;
+  return Math.max(0,Math.min(100,Math.round(tensionScore+ratioBonus-slackPenalty-convergencePenalty+15)));
 }
 
-function updateHealthScore() {
-  const score = computeHealthScore();
-  const classObj = POC_CLASSES.slice().reverse().find(c => score >= c.minH) || POC_CLASSES[6];
-  const el = document.getElementById('health-value');
-  const bar= document.getElementById('health-bar-fill');
+function updateAnalysis(){
+  const topo=state.topology; if(!topo)return;
+  const score=computeHealthScore();
+  const cls=POC_CLASSES.slice().reverse().find(c=>score>=c.minH)||POC_CLASSES[6];
 
-  el.textContent = score + '%';
-  el.style.color = score > 70 ? 'var(--health-good)' : score > 40 ? 'var(--health-mid)' : 'var(--health-bad)';
-  bar.style.width = score + '%';
-  bar.style.background = score > 70 ? 'var(--health-good)' : score > 40 ? 'var(--health-mid)' : 'var(--health-bad)';
-  document.getElementById('health-class').textContent = classObj.name;
-  document.getElementById('poc-class-desc').textContent = classObj.desc;
-}
+  const hv=document.getElementById('health-value');
+  const hb=document.getElementById('health-bar-fill');
+  hv.textContent=score+'%';
+  const col=score>70?'var(--accent2)':score>40?'var(--accent3)':'#f06060';
+  hv.style.color=col; hb.style.width=score+'%'; hb.style.background=col;
+  document.getElementById('health-class').textContent=cls.name;
+  document.getElementById('poc-class-desc').textContent=cls.desc;
 
-function updateStatPanel() {
-  if (!state.geometry) return;
-  const { struts, cables, vertices, symmetry } = state.geometry;
-  const n = vertices.length, s = struts.length, c = cables.length;
-  document.getElementById('stat-nodes').textContent   = n;
-  document.getElementById('stat-struts').textContent  = s;
-  document.getElementById('stat-cables').textContent  = c;
-  document.getElementById('stat-ratio').textContent   = (c/Math.max(s,1)).toFixed(2);
-  document.getElementById('stat-symmetry').textContent= symmetry;
-  // Maxwell rule for 3D: m = 3j - b, where j=joints, b=bars total
-  const dof = 3*n - (s+c);
-  document.getElementById('stat-dof').textContent     = dof + (dof <= 0 ? ' (rigid/prestressed)' : ' (mechanism)');
-}
+  // Stats
+  const slackCount=topo.cables.filter(c=>c.slack).length;
+  const nodeLoad=new Array(topo.nodes.length).fill(0);
+  topo.cables.forEach(c=>{if(!c.slack){nodeLoad[c.nodes[0]]+=c.tensionPct||100;nodeLoad[c.nodes[1]]+=c.tensionPct||100;}});
+  const totalLoad=nodeLoad.reduce((a,v)=>a+v,0);
+  const maxNodeLoad=Math.max(...nodeLoad,0);
+  const convergence=totalLoad>0?(maxNodeLoad/totalLoad*100).toFixed(0):0;
 
-function updateTensionMap() {
-  const container = document.getElementById('tension-map');
-  container.innerHTML = '';
-  if (!state.springs) return;
-  const top = state.springs.slice().sort((a,b)=>(b.currentForce||0)-(a.currentForce||0)).slice(0,8);
-  top.forEach(sp => {
-    const label = sp.type==='strut'
-      ? (state.labels.struts[sp.idx]||`Strut ${sp.idx+1}`)
-      : (state.labels.cables[sp.idx]||`Cable ${sp.idx+1}`);
-    const maxF = 200;
-    const pct  = Math.min(100, ((sp.currentForce||0)/maxF)*100).toFixed(0);
-    const col  = sp.type==='cable' ? '#3ecfcf' : '#e0e0f0';
+  document.getElementById('stat-nodes').textContent=topo.nodes.length;
+  document.getElementById('stat-struts').textContent=topo.struts.length;
+  document.getElementById('stat-cables').textContent=topo.cables.length;
+  document.getElementById('stat-slack').textContent=slackCount+` (${Math.round(slackCount/Math.max(topo.cables.length,1)*100)}%)`;
+  document.getElementById('stat-convergence').textContent=convergence+'% to dominant node';
+  document.getElementById('stat-symmetry').textContent=topo.symmetry||'—';
+  const dof=3*topo.nodes.length-(topo.struts.length+topo.cables.length);
+  document.getElementById('stat-dof').textContent=dof+(dof<=0?' (rigid/prestressed)':' (mechanism)');
 
-    const row = document.createElement('div');
-    row.className = 'tension-row';
-    row.innerHTML = `
-      <div class="tension-label">${label}</div>
-      <div class="tension-bar-bg">
-        <div class="tension-bar-fill" style="width:${pct}%; background:${col}"></div>
-      </div>
-      <div class="tension-pct" style="color:${col}">${pct}%</div>
-    `;
-    container.appendChild(row);
+  // Node roles
+  const nrl=document.getElementById('node-role-list'); nrl.innerHTML='';
+  topo.nodes.forEach((n,i)=>{
+    const d=document.createElement('div'); d.className='node-item';
+    d.innerHTML=`<span style="color:var(--text-muted);width:14px">${i}</span>
+      <span style="flex:1;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.label||`N${i}`}</span>
+      <span class="node-badge ${n.role||'normal'}">${n.role||'normal'}</span>`;
+    nrl.appendChild(d);
+  });
+
+  // Tension map
+  const tm=document.getElementById('tension-map'); tm.innerHTML='';
+  const sorted=[...topo.cables].sort((a,b)=>(b.tensionPct||0)-(a.tensionPct||0)).slice(0,10);
+  sorted.forEach(c=>{
+    const pct=Math.min(100,c.tensionPct||0);
+    const col=c.slack?'#3a4060':'#3ecfcf';
+    const row=document.createElement('div'); row.className='tension-row';
+    row.innerHTML=`<div class="tension-label">${c.label}</div>
+      <div class="tension-bar-bg"><div class="tension-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="tension-pct" style="color:${col}">${c.slack?'slack':pct+'%'}</div>`;
+    tm.appendChild(row);
   });
 }
 
-// ──────────────────────────────────────────────
-// LABELS PANEL
-// ──────────────────────────────────────────────
-function updateLabelsList() {
-  if (!state.geometry) return;
-  const strutList = document.getElementById('strut-list');
-  const cableList = document.getElementById('cable-list');
-  strutList.innerHTML = '';
-  cableList.innerHTML = '';
-
-  state.geometry.struts.forEach((_, i) => {
-    const name = state.labels.struts[i] || `Strut ${i+1}`;
-    strutList.appendChild(makeElementItem('strut', i, name));
-  });
-
-  state.geometry.cables.forEach((_, i) => {
-    const name = state.labels.cables[i] || `Cable ${i+1}`;
-    cableList.appendChild(makeElementItem('cable', i, name));
-  });
+function updateOverlay(){
+  document.getElementById('overlay-orgname').textContent=state.orgName;
+  const topo=state.topology;
+  document.getElementById('overlay-config').textContent=topo?topo.description:'—';
 }
 
-function makeElementItem(type, idx, name) {
-  const item = document.createElement('div');
-  item.className = 'element-item';
-  item.dataset.type = type;
-  item.dataset.idx  = idx;
-
-  const dot = document.createElement('div');
-  dot.className = `element-dot ${type}`;
-
-  const nameEl = document.createElement('span');
-  nameEl.className = 'element-name';
-  nameEl.textContent = name;
-
-  const editBtn = document.createElement('button');
-  editBtn.className = 'element-edit';
-  editBtn.textContent = '✎';
-  editBtn.title = 'Edit label';
-
-  editBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    const input = document.createElement('input');
-    input.className = 'element-name-input';
-    input.value = nameEl.textContent;
-    item.replaceChild(input, nameEl);
-    input.focus();
-    input.select();
-
-    const commit = () => {
-      const newName = input.value.trim() || name;
-      if (type === 'strut') state.labels.struts[idx] = newName;
-      else state.labels.cables[idx] = newName;
-      nameEl.textContent = newName;
-      item.replaceChild(nameEl, input);
-      rebuildMeshes(); // rebuild for new label sprites
-    };
-    input.addEventListener('blur', commit);
-    input.addEventListener('keydown', e2 => { if (e2.key==='Enter') commit(); if(e2.key==='Escape'){item.replaceChild(nameEl,input);} });
-  });
-
-  item.appendChild(dot);
-  item.appendChild(nameEl);
-  item.appendChild(editBtn);
-  item.addEventListener('click', () => selectElement(type, idx));
-  return item;
+// ═══════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════
+function exportTopology(){
+  const topo=state.topology; if(!topo)return;
+  const data={
+    organization:state.orgName,
+    geometry:topo.name, preset:state.topology.isCustom?'custom':state.preset,
+    pocVersion:'0.2',
+    parameters:{twist:state.twist,aspect:state.aspect,scale:state.scale},
+    topology:{
+      nodes:topo.nodes.map(n=>({id:n.id,label:n.label,pos:n.pos,role:n.role})),
+      struts:topo.struts.map(s=>({id:s.id,nodes:s.nodes,label:s.label,score:s.score,restLengthScale:s.restLengthScale,tensionPct:s.tensionPct})),
+      cables:topo.cables.map(c=>({id:c.id,nodes:c.nodes,label:c.label,group:c.group,tensionPct:c.tensionPct,slack:c.slack})),
+    },
+    health:{tensegrityIndex:computeHealthScore()+'%',pocClass:document.getElementById('health-class').textContent,notes:''},
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`${state.orgName.replace(/\s+/g,'-')}-tensegrity-v02.json`; a.click();
+  URL.revokeObjectURL(url);
 }
 
-function updateOverlay() {
-  document.getElementById('overlay-orgname').textContent = state.orgName;
-  document.getElementById('overlay-config').textContent  = state.geometry ? state.geometry.description : '';
-}
+// ═══════════════════════════════════════════════
+// ACROSS PROTOCOL EXAMPLE JSON (embedded)
+// ═══════════════════════════════════════════════
+const ACROSS_JSON=`{
+  "organization": "Across Protocol",
+  "geometry": "Custom Asymmetric — Single-Node Convergence",
+  "preset": "custom",
+  "pocVersion": "0.2",
+  "topology": {
+    "nodes": [
+      {"id":0,"label":"Hub (Dominant Node)","pos":[0.0,0.0,0.0],"role":"convergence"},
+      {"id":1,"label":"Accountability","pos":[-1.8,0.6,0.8],"role":"outer"},
+      {"id":2,"label":"Transparency","pos":[1.8,0.6,0.8],"role":"outer"},
+      {"id":3,"label":"Participation","pos":[0.0,0.6,-1.8],"role":"outer"},
+      {"id":4,"label":"Equity","pos":[-1.1,-1.2,-0.6],"role":"outer"},
+      {"id":5,"label":"Legitimacy","pos":[1.1,-1.2,-0.6],"role":"outer"},
+      {"id":6,"label":"Four Batteries (Isolated)","pos":[3.2,1.8,-1.2],"role":"isolated"}
+    ],
+    "struts": [
+      {"id":0,"nodes":[0,1],"label":"Accountability Standard","score":2,"restLengthScale":1.0},
+      {"id":1,"nodes":[0,2],"label":"Transparency Standard","score":1,"restLengthScale":1.0},
+      {"id":2,"nodes":[0,3],"label":"Participation Standard","score":2,"restLengthScale":1.0},
+      {"id":3,"nodes":[0,4],"label":"Equity Standard","score":1,"restLengthScale":1.0},
+      {"id":4,"nodes":[5,6],"label":"Four Batteries Expression Battery","score":3,"restLengthScale":1.4}
+    ],
+    "cables": [
+      {"id":0,"nodes":[0,1],"label":"Generative-1a · Hub→Accountability","group":"generative-1","tensionPct":85,"slack":false},
+      {"id":1,"nodes":[0,2],"label":"Generative-1b · Hub→Transparency","group":"generative-1","tensionPct":82,"slack":false},
+      {"id":2,"nodes":[0,3],"label":"Generative-1c · Hub→Participation","group":"generative-1","tensionPct":78,"slack":false},
+      {"id":3,"nodes":[0,4],"label":"Generative-2a · Hub→Equity","group":"generative-2","tensionPct":72,"slack":false},
+      {"id":4,"nodes":[0,5],"label":"Generative-2b · Hub→Legitimacy","group":"generative-2","tensionPct":68,"slack":false},
+      {"id":5,"nodes":[1,2],"label":"Lateral · Accountability↔Transparency","group":"lateral","tensionPct":12,"slack":true},
+      {"id":6,"nodes":[2,3],"label":"Lateral · Transparency↔Participation","group":"lateral","tensionPct":8,"slack":true},
+      {"id":7,"nodes":[3,4],"label":"Lateral · Participation↔Equity","group":"lateral","tensionPct":5,"slack":true},
+      {"id":8,"nodes":[4,5],"label":"Lateral · Equity↔Legitimacy","group":"lateral","tensionPct":10,"slack":true},
+      {"id":9,"nodes":[1,4],"label":"Lateral · Accountability↔Equity","group":"lateral","tensionPct":6,"slack":true}
+    ]
+  }
+}`;
 
-// ──────────────────────────────────────────────
-// SLIDER VALUE COLORS
-// ──────────────────────────────────────────────
-function colorSliderValue(el, val, lo, hi) {
-  el.classList.remove('good','mid','bad');
-  if (val >= hi*0.8) el.classList.add('good');
-  else if (val >= hi*0.4) el.classList.add('mid');
-  else el.classList.add('bad');
-}
-
-// ──────────────────────────────────────────────
-// UI EVENT WIRING
-// ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// UI WIRING
+// ═══════════════════════════════════════════════
 
 // Tabs
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
-    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab==='analysis') updateAnalysis();
   });
 });
 
 // Presets
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    state.preset = btn.dataset.preset;
-    state.labels.struts = {};
-    state.labels.cables = {};
-    // Reset twist to preset defaults
-    const defaults = { prism3:150, prism4:135, icosahedron:150, tower2:150, tower3:150, torus:120 };
-    state.twist = defaults[state.preset] || 150;
-    document.getElementById('sl-twist').value = state.twist;
-    document.getElementById('val-twist').textContent = state.twist + '°';
+    state.preset=btn.dataset.preset;
+    const defaults={prism3:150,prism4:135,icosahedron:150,tower2:150,tower3:150,torus:120};
+    state.twist=defaults[state.preset]||150;
+    document.getElementById('sl-twist').value=state.twist;
+    document.getElementById('val-twist').textContent=state.twist+'°';
     buildScene();
   });
 });
 
-// Sliders
-document.getElementById('sl-scale').addEventListener('input', e => {
-  state.scale = parseFloat(e.target.value);
-  document.getElementById('val-scale').textContent = state.scale.toFixed(2) + '×';
-  buildScene();
-});
+// Shape sliders
+document.getElementById('sl-scale').addEventListener('input',e=>{state.scale=parseFloat(e.target.value);document.getElementById('val-scale').textContent=state.scale.toFixed(2)+'×';buildScene();});
+document.getElementById('sl-twist').addEventListener('input',e=>{state.twist=parseInt(e.target.value);document.getElementById('val-twist').textContent=state.twist+'°';buildScene();});
+document.getElementById('sl-aspect').addEventListener('input',e=>{state.aspect=parseFloat(e.target.value);document.getElementById('val-aspect').textContent=state.aspect.toFixed(2);buildScene();});
 
-document.getElementById('sl-twist').addEventListener('input', e => {
-  state.twist = parseInt(e.target.value);
-  document.getElementById('val-twist').textContent = state.twist + '°';
-  buildScene();
+// Physics sliders
+document.getElementById('sl-pretension').addEventListener('input',e=>{
+  state.globalPretension=parseInt(e.target.value)/100;
+  document.getElementById('val-pretension').textContent=(state.globalPretension*100).toFixed(0)+'%';
+  state.simSprings.filter(s=>s.type==='cable'&&!s.slack).forEach(s=>s.stiffness=600*state.globalPretension*(state.topology.cables[s.memberIdx]?.tensionPct||100)/100);
+  updateAnalysis();
 });
-
-document.getElementById('sl-aspect').addEventListener('input', e => {
-  state.aspect = parseFloat(e.target.value);
-  document.getElementById('val-aspect').textContent = state.aspect.toFixed(2);
-  buildScene();
+document.getElementById('sl-compression').addEventListener('input',e=>{
+  state.globalCompression=parseInt(e.target.value)/100;
+  document.getElementById('val-compression').textContent=(state.globalCompression*100).toFixed(0)+'%';
+  state.simSprings.filter(s=>s.type==='strut').forEach(s=>s.stiffness=800*state.globalCompression);
+  updateAnalysis();
 });
-
-document.getElementById('sl-pretension').addEventListener('input', e => {
-  state.pretension = parseInt(e.target.value) / 100;
-  const valEl = document.getElementById('val-pretension');
-  valEl.textContent = (state.pretension*100).toFixed(0) + '%';
-  colorSliderValue(valEl, state.pretension, 0, 2);
-  // Rebuild springs
-  const cableStiffness = 600 * state.pretension;
-  state.springs.filter(s=>s.type==='cable').forEach(s=>s.stiffness=cableStiffness);
-  updateHealthScore();
-  updateTensionMap();
-});
-
-document.getElementById('sl-compression').addEventListener('input', e => {
-  state.compression = parseInt(e.target.value) / 100;
-  document.getElementById('val-compression').textContent = (state.compression*100).toFixed(0) + '%';
-  const strutStiffness = 800 * state.compression;
-  state.springs.filter(s=>s.type==='strut').forEach(s=>s.stiffness=strutStiffness);
-  updateHealthScore();
-});
-
-document.getElementById('sl-damping').addEventListener('input', e => {
-  state.damping = parseFloat(e.target.value);
-  document.getElementById('val-damping').textContent = state.damping.toFixed(3);
-});
+document.getElementById('sl-damping').addEventListener('input',e=>{state.damping=parseFloat(e.target.value);document.getElementById('val-damping').textContent=state.damping.toFixed(3);});
 
 // Toggles
-document.getElementById('tog-nodes').addEventListener('change', e => {
-  state.showNodes = e.target.checked;
-  rebuildMeshes();
-});
-document.getElementById('tog-labels').addEventListener('change', e => {
-  state.showLabels = e.target.checked;
-  rebuildMeshes();
-});
-document.getElementById('tog-tension-color').addEventListener('change', e => {
-  state.colorTension = e.target.checked;
-});
-document.getElementById('tog-animate').addEventListener('change', e => {
-  state.animate = e.target.checked;
-});
-document.getElementById('tog-axes').addEventListener('change', e => {
-  state.showAxes = e.target.checked;
-  if (e.target.checked) {
-    axesHelper = new THREE.AxesHelper(state.scale * 1.5);
-    scene.add(axesHelper);
-  } else if (axesHelper) {
-    scene.remove(axesHelper);
-    axesHelper = null;
-  }
-});
+document.getElementById('tog-nodes').addEventListener('change',e=>{state.showNodes=e.target.checked;rebuildMeshes();});
+document.getElementById('tog-labels').addEventListener('change',e=>{state.showLabels=e.target.checked;rebuildMeshes();});
+document.getElementById('tog-tension-color').addEventListener('change',e=>{state.colorTension=e.target.checked;});
+document.getElementById('tog-animate').addEventListener('change',e=>{state.animate=e.target.checked;});
+document.getElementById('tog-dominance').addEventListener('change',e=>{state.showDominance=e.target.checked;rebuildMeshes();});
 
 // Org name
-document.getElementById('orgName').addEventListener('input', e => {
-  state.orgName = e.target.value;
-  document.getElementById('overlay-orgname').textContent = state.orgName;
+document.getElementById('orgName').addEventListener('input',e=>{state.orgName=e.target.value;updateOverlay();});
+
+// Import
+document.getElementById('btn-import').addEventListener('click',()=>{
+  const json=document.getElementById('json-import').value.trim();
+  if(!json){showImportStatus(false,'Paste JSON first');return;}
+  const result=loadCustomTopology(json);
+  showImportStatus(result.ok,result.msg);
 });
 
-// Reset labels
-document.getElementById('btn-reset-labels').addEventListener('click', () => {
-  state.labels.struts = {};
-  state.labels.cables = {};
-  if (state.geometry) {
-    state.geometry.struts.forEach((_,i) => state.labels.struts[i] = `Strut ${i+1}`);
-    state.geometry.cables.forEach((_,i) => state.labels.cables[i] = `Cable ${i+1}`);
-  }
-  updateLabelsList();
-  rebuildMeshes();
+document.getElementById('btn-load-across').addEventListener('click',()=>{
+  document.getElementById('json-import').value=ACROSS_JSON;
+  const result=loadCustomTopology(ACROSS_JSON);
+  showImportStatus(result.ok,result.msg);
+  // Switch to analysis to show the results
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector('[data-tab="analysis"]').classList.add('active');
+  document.getElementById('tab-analysis').classList.add('active');
+  updateAnalysis();
 });
 
-// Export JSON
-document.getElementById('btn-export-labels').addEventListener('click', () => {
-  if (!state.geometry) return;
-  const data = {
-    organization: state.orgName,
-    geometry: state.geometry.name,
-    preset: state.preset,
-    parameters: { twist:state.twist, aspect:state.aspect, scale:state.scale },
-    topology: {
-      nodes: state.geometry.vertices.length,
-      struts: state.geometry.struts.length,
-      cables: state.geometry.cables.length,
-      symmetry: state.geometry.symmetry,
-    },
-    labels: {
-      struts: Object.fromEntries(Object.entries(state.labels.struts).map(([k,v])=>[`S${parseInt(k)+1}`,v])),
-      cables: Object.fromEntries(Object.entries(state.labels.cables).map(([k,v])=>[`C${parseInt(k)+1}`,v])),
-    },
-    health: { tensegrityIndex: computeHealthScore() + '%', pocClass: document.getElementById('health-class').textContent },
-  };
-  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${state.orgName.replace(/\s+/g,'-')}-tensegrity.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
-
-// ──────────────────────────────────────────────
-// ANIMATION LOOP
-// ──────────────────────────────────────────────
-let frameCount = 0;
-function animate() {
-  requestAnimationFrame(animate);
-
-  if (state.animate && state.nodes.length > 0) {
-    physicsStep(0.016);
-    updateMeshPositions();
-  }
-
-  // Update tension map every 30 frames
-  frameCount++;
-  if (frameCount % 30 === 0) {
-    updateTensionMap();
-    updateHealthScore();
-  }
-
-  renderer.render(scene, camera);
+function showImportStatus(ok,msg){
+  const el=document.getElementById('import-status');
+  el.style.display='block';
+  el.className='import-status '+(ok?'ok':'err');
+  el.textContent=msg;
+  if(ok) setTimeout(()=>{el.style.display='none';},4000);
 }
 
-// ──────────────────────────────────────────────
+// Export + Reset
+document.getElementById('btn-export').addEventListener('click',exportTopology);
+document.getElementById('btn-reset-labels').addEventListener('click',()=>{
+  const topo=state.topology; if(!topo)return;
+  topo.struts.forEach((s,i)=>s.label=`Strut ${i+1}`);
+  topo.cables.forEach((c,i)=>c.label=`Cable ${i+1}`);
+  refreshMembersTab(); rebuildMeshes();
+});
+
+// ═══════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════
+let frame=0;
+function animate(){
+  requestAnimationFrame(animate);
+  if(state.animate&&state.simNodes.length>0){ physicsStep(0.016); updateMeshPositions(); }
+  if(++frame%45===0){ updateAnalysis(); }
+  renderer.render(scene,camera);
+}
+
+// ═══════════════════════════════════════════════
 // INIT
-// ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════
 buildScene();
 animate();
-
 </script>
 </body>
 </html>
