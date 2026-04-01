@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tensegrity Visualizer v0.3 — PoC Protocol</title>
+  <title>Tensegrity Visualizer v0.4 — Pressure Lab</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -34,9 +34,17 @@
     canvas { display:block; width:100%!important; height:100%!important; }
     #pair-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5; }
 
+    /* ── MODE BAR ── */
+    #mode-bar { display:flex; border-bottom:1px solid var(--panel-border); flex-shrink:0; }
+    .mode-btn { flex:1; text-align:center; font-size:12px; font-weight:600; padding:10px;
+      cursor:pointer; border:none; background:transparent; color:var(--text-muted);
+      border-bottom:2px solid transparent; transition:all .15s; }
+    .mode-btn:hover { color:var(--text); }
+    .mode-btn.active { color:var(--accent); border-bottom:2px solid var(--accent); }
+
     /* ── SIDEBAR COMPONENTS ── */
     .sidebar-header { padding:14px 16px 10px; border-bottom:1px solid var(--panel-border);
-      position:sticky; top:0; background:var(--panel-bg); z-index:1; }
+      flex-shrink:0; background:var(--panel-bg); }
     .sidebar-header h1 { font-size:12px; font-weight:700; letter-spacing:.08em;
       text-transform:uppercase; color:var(--accent); }
     .sidebar-header p { font-size:10px; color:var(--text-muted); margin-top:2px; }
@@ -52,6 +60,14 @@
     .section { padding:12px 14px; border-bottom:1px solid var(--panel-border); }
     .section-label { font-size:10px; font-weight:700; letter-spacing:.12em;
       text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+
+    /* ── TYPE BUTTONS ── */
+    .type-btn { background:var(--bg); border:1px solid var(--panel-border);
+      border-radius:4px; font-size:11px; font-weight:600; padding:5px 0;
+      cursor:pointer; color:var(--text-muted); transition:all .15s; text-align:center; }
+    .type-btn:hover { border-color:var(--accent); color:var(--text); }
+    .type-btn.active { background:color-mix(in srgb,var(--accent) 20%,transparent);
+      border-color:var(--accent); color:var(--accent); }
 
     /* ── PRESET GRID ── */
     .preset-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
@@ -251,172 +267,248 @@
 <div id="sidebar">
   <div class="sidebar-header">
     <h1>Tensegrity Visualizer</h1>
-    <p>Proof of Coordination Protocol — v0.3</p>
+    <p>Proof of Coordination Protocol — v0.4</p>
   </div>
 
-  <!-- Org name -->
-  <div class="section" style="padding-bottom:10px">
-    <input class="org-input" id="orgName" type="text" placeholder="Organization name..." value="Octant" />
+  <!-- Mode bar -->
+  <div id="mode-bar">
+    <button class="mode-btn active" data-mode="lab">⬡ Lab</button>
+    <button class="mode-btn" data-mode="build">⚙ Build</button>
   </div>
 
-  <!-- Tabs (5 tabs) -->
-  <div class="tabs">
-    <div class="tab active" data-tab="structure">Structure</div>
-    <div class="tab" data-tab="members">Members</div>
-    <div class="tab" data-tab="pairings">Pairings</div>
-    <div class="tab" data-tab="import">Import</div>
-    <div class="tab" data-tab="analysis">Analysis</div>
-  </div>
+  <!-- ══════════ LAB PANEL ══════════ -->
+  <div id="lab-panel">
 
-  <!-- ── TAB: STRUCTURE ── -->
-  <div class="tab-content active" id="tab-structure">
+    <!-- Type Preset Selector -->
     <div class="section">
-      <div class="section-label">Geometry Preset</div>
-      <div class="preset-grid" id="presetGrid">
-        <button class="preset-btn active" data-preset="prism3">3-Strut Prism<span class="preset-sub">Simplex · D₃</span></button>
-        <button class="preset-btn" data-preset="prism4">4-Strut Antiprism<span class="preset-sub">Square · D₄</span></button>
-        <button class="preset-btn" data-preset="icosahedron">Icosahedron<span class="preset-sub">6 struts · O</span></button>
-        <button class="preset-btn" data-preset="tower2">2-Stage Tower<span class="preset-sub">Needle · C₃</span></button>
-        <button class="preset-btn" data-preset="tower3">3-Stage Tower<span class="preset-sub">Mast · C₃</span></button>
-        <button class="preset-btn" data-preset="torus">Torus T(4-3)<span class="preset-sub">Ring · C₄</span></button>
+      <div class="section-label">Starting Configuration</div>
+      <div id="type-preset-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+        <button class="type-btn active" data-type="1">T1</button>
+        <button class="type-btn" data-type="2">T2</button>
+        <button class="type-btn" data-type="3">T3</button>
+        <button class="type-btn" data-type="4">T4</button>
+        <button class="type-btn" data-type="5">T5</button>
+        <button class="type-btn" data-type="6">T6</button>
+        <button class="type-btn" data-type="7">T7</button>
+      </div>
+      <div id="type-desc" style="font-size:10px;color:var(--text-muted);line-height:1.6;margin-top:8px;min-height:48px"></div>
+    </div>
+
+    <!-- Current Health Display -->
+    <div class="section" id="lab-health-section">
+      <div class="section-label">Structural State</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <div id="lab-type-badge" style="font-size:28px;font-weight:800;color:var(--accent);line-height:1">T1</div>
+        <div id="lab-type-name" style="font-size:13px;font-weight:600;color:var(--text)">Full Tensegrity Health</div>
+      </div>
+      <div id="lab-type-detail" style="font-size:10px;color:var(--text-muted);line-height:1.6;margin-bottom:8px">
+        Tension and compression in dynamic balance...
+      </div>
+      <!-- 7-segment type bar -->
+      <div id="type-bar" style="display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin-bottom:8px"></div>
+      <!-- Restoration Capacity -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:10px;color:var(--text-muted)">Restoration Capacity</span>
+        <span id="lab-rc-value" style="font-size:11px;font-weight:600;color:#3ecfcf">100%</span>
+      </div>
+      <div style="height:4px;background:var(--panel-border);border-radius:2px;overflow:hidden">
+        <div id="lab-rc-bar" style="height:100%;width:100%;background:#3ecfcf;border-radius:2px;transition:width .5s,background .5s"></div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-label">Shape Parameters</div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Scale</span><span class="slider-value" id="val-scale">1.0×</span></div>
-        <input type="range" id="sl-scale" min="0.3" max="3" step="0.05" value="1.0" />
+    <!-- Suppressive Pressure Control -->
+    <div class="section" id="lab-pressure-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="section-label" style="margin-bottom:0">Suppressive Pressure</div>
+        <span id="lab-pressure-val" style="font-size:18px;font-weight:800;color:#f06060">0%</span>
       </div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Twist Angle</span><span class="slider-value" id="val-twist">150°</span></div>
-        <input type="range" id="sl-twist" min="90" max="270" step="1" value="150" />
+      <input type="range" id="lab-pressure-slider" min="0" max="100" step="1" value="0"
+        style="width:100%;height:8px;accent-color:#f06060;cursor:pointer" />
+      <!-- Pressure response bar -->
+      <div style="height:6px;background:var(--panel-border);border-radius:3px;margin-top:8px;overflow:hidden">
+        <div id="lab-pressure-bar" style="height:100%;width:0%;border-radius:3px;
+          background:linear-gradient(90deg,#3ecfcf 0%,#f0c060 50%,#f06060 100%);transition:width .1s"></div>
       </div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Aspect Ratio (H/R)</span><span class="slider-value" id="val-aspect">1.4</span></div>
-        <input type="range" id="sl-aspect" min="0.4" max="4.0" step="0.05" value="1.4" />
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button id="lab-btn-release" class="btn" style="flex:1">Release</button>
+        <button id="lab-btn-stress-test" class="btn primary" style="flex:1">Stress Test</button>
+        <button id="lab-btn-sustained" class="btn" style="flex:1">Sustain</button>
       </div>
+      <!-- Restore status -->
+      <div id="lab-restore-status" style="display:none;margin-top:8px;font-size:10px;
+        padding:5px 8px;border-radius:4px;text-align:center"></div>
     </div>
 
-    <div class="section">
-      <div class="section-label">Global Physics</div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Cable Pretension (global)</span><span class="slider-value good" id="val-pretension">100%</span></div>
-        <input type="range" id="sl-pretension" min="0" max="200" step="1" value="100" />
-      </div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Strut Compression (global)</span><span class="slider-value" id="val-compression">100%</span></div>
-        <input type="range" id="sl-compression" min="0" max="200" step="1" value="100" />
-      </div>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Damping</span><span class="slider-value" id="val-damping">0.03</span></div>
-        <input type="range" id="sl-damping" min="0.001" max="0.15" step="0.001" value="0.03" />
-      </div>
+    <!-- Hint text -->
+    <div style="padding:10px 14px;font-size:9px;color:var(--text-muted);line-height:1.7">
+      Drag nodes directly to apply local pressure.<br>
+      Shift-drag to pull (release tension).
     </div>
 
-    <div class="section">
-      <div class="section-label">Display</div>
-      <div class="toggle-row"><span class="slider-label">Show nodes</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-nodes" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row"><span class="slider-label">Show labels</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-labels" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row"><span class="slider-label">Color by tension</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-tension-color" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row"><span class="slider-label">Animate physics</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-animate" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row"><span class="slider-label">Highlight dominance</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-dominance" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row"><span class="slider-label">Show pairings</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-pairings" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div class="toggle-row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--panel-border)">
-        <span class="slider-label" style="color:var(--accent3)">Schematic mode</span>
-        <label class="toggle-switch"><input type="checkbox" id="tog-schematic" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
-      <div id="schematic-hint" style="display:none;font-size:9px;color:var(--text-muted);line-height:1.6;margin-top:4px">Struts prominent · cables as group bundles · individual lines hidden</div>
+  </div><!-- /lab-panel -->
+
+  <!-- ══════════ BUILD PANEL ══════════ -->
+  <div id="build-panel" style="display:none">
+
+    <!-- Org name -->
+    <div class="section" style="padding-bottom:10px">
+      <input class="org-input" id="orgName" type="text" placeholder="Organization name..." value="Octant" />
     </div>
 
-    <div class="section">
-      <div class="section-label">External Pressure</div>
-      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
-        Applies inward compression to all nodes. Release to observe structural restoration.
-      </p>
-      <div class="slider-row">
-        <div class="slider-header"><span class="slider-label">Pressure</span><span class="slider-value bad" id="val-pressure">0</span></div>
-        <input type="range" id="sl-pressure" min="0" max="100" step="1" value="0" />
-      </div>
-      <div class="pressure-response">
-        <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px;">Structural Response</div>
-        <div class="pressure-bar-bg">
-          <div class="pressure-bar-cover" id="pressure-bar-cover" style="width:100%"></div>
+    <!-- Tabs (5 tabs) -->
+    <div class="tabs">
+      <div class="tab active" data-tab="structure">Structure</div>
+      <div class="tab" data-tab="members">Members</div>
+      <div class="tab" data-tab="pairings">Pairings</div>
+      <div class="tab" data-tab="import">Import</div>
+      <div class="tab" data-tab="analysis">Analysis</div>
+    </div>
+
+    <!-- ── TAB: STRUCTURE ── -->
+    <div class="tab-content active" id="tab-structure">
+      <div class="section">
+        <div class="section-label">Geometry Preset</div>
+        <div class="preset-grid" id="presetGrid">
+          <button class="preset-btn active" data-preset="prism3">3-Strut Prism<span class="preset-sub">Simplex · D₃</span></button>
+          <button class="preset-btn" data-preset="prism4">4-Strut Antiprism<span class="preset-sub">Square · D₄</span></button>
+          <button class="preset-btn" data-preset="icosahedron">Icosahedron<span class="preset-sub">6 struts · O</span></button>
+          <button class="preset-btn" data-preset="tower2">2-Stage Tower<span class="preset-sub">Needle · C₃</span></button>
+          <button class="preset-btn" data-preset="tower3">3-Stage Tower<span class="preset-sub">Mast · C₃</span></button>
+          <button class="preset-btn" data-preset="torus">Torus T(4-3)<span class="preset-sub">Ring · C₄</span></button>
         </div>
-        <div class="restore-indicator" id="restore-indicator"></div>
       </div>
-      <div class="btn-row" style="margin-top:8px">
-        <button class="btn sm" id="btn-release-pressure">Release Pressure</button>
-        <button class="btn sm primary" id="btn-stress-test">Stress Test</button>
+
+      <div class="section">
+        <div class="section-label">Shape Parameters</div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Scale</span><span class="slider-value" id="val-scale">1.0×</span></div>
+          <input type="range" id="sl-scale" min="0.3" max="3" step="0.05" value="1.0" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Twist Angle</span><span class="slider-value" id="val-twist">150°</span></div>
+          <input type="range" id="sl-twist" min="90" max="270" step="1" value="150" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Aspect Ratio (H/R)</span><span class="slider-value" id="val-aspect">1.4</span></div>
+          <input type="range" id="sl-aspect" min="0.4" max="4.0" step="0.05" value="1.4" />
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Global Physics</div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Cable Pretension (global)</span><span class="slider-value good" id="val-pretension">100%</span></div>
+          <input type="range" id="sl-pretension" min="0" max="200" step="1" value="100" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Strut Compression (global)</span><span class="slider-value" id="val-compression">100%</span></div>
+          <input type="range" id="sl-compression" min="0" max="200" step="1" value="100" />
+        </div>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Damping</span><span class="slider-value" id="val-damping">0.03</span></div>
+          <input type="range" id="sl-damping" min="0.001" max="0.15" step="0.001" value="0.03" />
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Display</div>
+        <div class="toggle-row"><span class="slider-label">Show nodes</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-nodes" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row"><span class="slider-label">Show labels</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-labels" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row"><span class="slider-label">Color by tension</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-tension-color" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row"><span class="slider-label">Animate physics</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-animate" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row"><span class="slider-label">Highlight dominance</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-dominance" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row"><span class="slider-label">Show pairings</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-pairings" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div class="toggle-row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--panel-border)">
+          <span class="slider-label" style="color:var(--accent3)">Schematic mode</span>
+          <label class="toggle-switch"><input type="checkbox" id="tog-schematic" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+        <div id="schematic-hint" style="display:none;font-size:9px;color:var(--text-muted);line-height:1.6;margin-top:4px">Struts prominent · cables as group bundles · individual lines hidden</div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">External Pressure</div>
+        <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+          Applies inward compression to all nodes. Release to observe structural restoration.
+        </p>
+        <div class="slider-row">
+          <div class="slider-header"><span class="slider-label">Pressure</span><span class="slider-value bad" id="val-pressure">0</span></div>
+          <input type="range" id="sl-pressure" min="0" max="100" step="1" value="0" />
+        </div>
+        <div class="pressure-response">
+          <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px;">Structural Response</div>
+          <div class="pressure-bar-bg">
+            <div class="pressure-bar-cover" id="pressure-bar-cover" style="width:100%"></div>
+          </div>
+          <div class="restore-indicator" id="restore-indicator"></div>
+        </div>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn sm" id="btn-release-pressure">Release Pressure</button>
+          <button class="btn sm primary" id="btn-stress-test">Stress Test</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- ── TAB: MEMBERS ── -->
-  <div class="tab-content" id="tab-members">
-    <div class="section">
-      <div class="section-label">Struts <span style="color:var(--text-muted)">(compression)</span></div>
-      <div class="member-list" id="strut-list"></div>
-    </div>
-    <div class="section">
-      <div class="section-label">Cables <span style="color:var(--text-muted)">(tension)</span></div>
-      <div class="member-list" id="cable-list"></div>
-    </div>
-    <div class="section">
-      <div class="btn-row">
-        <button class="btn sm" id="btn-reset-labels">Reset Labels</button>
-        <button class="btn sm primary" id="btn-export">Export JSON</button>
+    <!-- ── TAB: MEMBERS ── -->
+    <div class="tab-content" id="tab-members">
+      <div class="section">
+        <div class="section-label">Struts <span style="color:var(--text-muted)">(compression)</span></div>
+        <div class="member-list" id="strut-list"></div>
       </div>
-    </div>
-  </div>
-
-  <!-- ── TAB: PAIRINGS ── -->
-  <div class="tab-content" id="tab-pairings">
-    <div class="section">
-      <div class="section-label">Active Pairings</div>
-      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
-        Shift-click elements in the 3D view to create a pairing.
-      </p>
-      <div id="pairings-list"></div>
-      <div class="btn-row">
-        <button class="btn sm danger" id="btn-clear-pairings">Clear All Pairings</button>
+      <div class="section">
+        <div class="section-label">Cables <span style="color:var(--text-muted)">(tension)</span></div>
+        <div class="member-list" id="cable-list"></div>
       </div>
-    </div>
-  </div>
-
-  <!-- ── TAB: IMPORT ── -->
-  <div class="tab-content" id="tab-import">
-    <div class="section">
-      <div class="section-label">Load Custom Topology</div>
-
-      <!-- Drop zone -->
-      <div class="drop-zone" id="drop-zone">
-        <span class="dz-icon">📂</span>
-        <strong>Drop a JSON file here</strong><br>
-        or click to browse
-      </div>
-      <input type="file" id="file-input" accept=".json" style="display:none" />
-
-      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
-        Or paste a topology JSON (v0.3 format) to define arbitrary nodes, struts, and cables.
-        Per-member tension values in the JSON are applied on import.
-      </p>
-      <textarea class="json-input" id="json-import" placeholder='{"organization":"...","topology":{"nodes":[...],"struts":[...],"cables":[...]}}'></textarea>
-      <div class="import-status" id="import-status"></div>
-      <div class="btn-row">
-        <button class="btn primary" id="btn-import">Load Topology</button>
-        <button class="btn" id="btn-load-across">Load Across Example</button>
+      <div class="section">
+        <div class="btn-row">
+          <button class="btn sm" id="btn-reset-labels">Reset Labels</button>
+          <button class="btn sm primary" id="btn-export">Export JSON</button>
+        </div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-label">JSON Schema Reference</div>
-      <div style="font-size:9px; font-family:monospace; color:var(--text-muted); line-height:1.8; white-space:pre-wrap; overflow-x:auto;">nodes: [{id, label, pos:[x,y,z], role}]
+    <!-- ── TAB: PAIRINGS ── -->
+    <div class="tab-content" id="tab-pairings">
+      <div class="section">
+        <div class="section-label">Active Pairings</div>
+        <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+          Shift-click elements in the 3D view to create a pairing.
+        </p>
+        <div id="pairings-list"></div>
+        <div class="btn-row">
+          <button class="btn sm danger" id="btn-clear-pairings">Clear All Pairings</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: IMPORT ── -->
+    <div class="tab-content" id="tab-import">
+      <div class="section">
+        <div class="section-label">Load Custom Topology</div>
+        <div class="drop-zone" id="drop-zone">
+          <span class="dz-icon">📂</span>
+          <strong>Drop a JSON file here</strong><br>
+          or click to browse
+        </div>
+        <input type="file" id="file-input" accept=".json" style="display:none" />
+        <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+          Or paste a topology JSON (v0.3 format) to define arbitrary nodes, struts, and cables.
+          Per-member tension values in the JSON are applied on import.
+        </p>
+        <textarea class="json-input" id="json-import" placeholder='{"organization":"...","topology":{"nodes":[...],"struts":[...],"cables":[...]}}'></textarea>
+        <div class="import-status" id="import-status"></div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-import">Load Topology</button>
+          <button class="btn" id="btn-load-across">Load Across Example</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">JSON Schema Reference</div>
+        <div style="font-size:9px; font-family:monospace; color:var(--text-muted); line-height:1.8; white-space:pre-wrap; overflow-x:auto;">nodes: [{id, label, pos:[x,y,z], role}]
 struts: [{id, nodes:[a,b], label,
           restLengthScale, score}]
 cables: [{id, nodes:[a,b], label,
@@ -424,49 +516,47 @@ cables: [{id, nodes:[a,b], label,
           group}]
 pairings: [{id, label, color,
             members:[{type,id}]}]</div>
-    </div>
-  </div>
-
-  <!-- ── TAB: ANALYSIS ── -->
-  <div class="tab-content" id="tab-analysis">
-    <div class="section">
-      <div class="section-label">Structural Health</div>
-      <div class="health-display">
-        <div class="health-label">Tensegrity Index</div>
-        <div class="health-value" id="health-value">87%</div>
-        <div class="health-class" id="health-class">Class 1 · Fully Prestressed</div>
-        <div class="health-bar"><div class="health-bar-fill" id="health-bar-fill" style="width:87%"></div></div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-label">Topology</div>
-      <div style="color:var(--text-muted); line-height:2; font-size:11px;">
-        <div>Nodes: <span style="color:var(--text)" id="stat-nodes">—</span></div>
-        <div>Struts: <span style="color:var(--strut-color)" id="stat-struts">—</span></div>
-        <div>Cables: <span style="color:var(--cable-color)" id="stat-cables">—</span></div>
-        <div>Slack cables: <span style="color:var(--slack-color)" id="stat-slack">—</span></div>
-        <div>Convergence index: <span style="color:var(--dominant-color)" id="stat-convergence">—</span></div>
-        <div>Symmetry: <span style="color:var(--accent)" id="stat-symmetry">—</span></div>
-        <div>Maxwell DOF: <span style="color:var(--text)" id="stat-dof">—</span></div>
+    <!-- ── TAB: ANALYSIS ── -->
+    <div class="tab-content" id="tab-analysis">
+      <div class="section">
+        <div class="section-label">Structural Health</div>
+        <div class="health-display">
+          <div class="health-label">Tensegrity Index</div>
+          <div class="health-value" id="health-value">87%</div>
+          <div class="health-class" id="health-class">Class 1 · Fully Prestressed</div>
+          <div class="health-bar"><div class="health-bar-fill" id="health-bar-fill" style="width:87%"></div></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">Topology</div>
+        <div style="color:var(--text-muted); line-height:2; font-size:11px;">
+          <div>Nodes: <span style="color:var(--text)" id="stat-nodes">—</span></div>
+          <div>Struts: <span style="color:var(--strut-color)" id="stat-struts">—</span></div>
+          <div>Cables: <span style="color:var(--cable-color)" id="stat-cables">—</span></div>
+          <div>Slack cables: <span style="color:var(--slack-color)" id="stat-slack">—</span></div>
+          <div>Convergence index: <span style="color:var(--dominant-color)" id="stat-convergence">—</span></div>
+          <div>Symmetry: <span style="color:var(--accent)" id="stat-symmetry">—</span></div>
+          <div>Maxwell DOF: <span style="color:var(--text)" id="stat-dof">—</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-label">Node Roles</div>
+        <div id="node-role-list"></div>
+      </div>
+      <div class="section">
+        <div class="section-label">Tension Map</div>
+        <div id="tension-map"></div>
+      </div>
+      <div class="section">
+        <div class="section-label">PoC Classification</div>
+        <div style="font-size:11px; color:var(--text-muted); line-height:1.7;" id="poc-class-desc">—</div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-label">Node Roles</div>
-      <div id="node-role-list"></div>
-    </div>
-
-    <div class="section">
-      <div class="section-label">Tension Map</div>
-      <div id="tension-map"></div>
-    </div>
-
-    <div class="section">
-      <div class="section-label">PoC Classification</div>
-      <div style="font-size:11px; color:var(--text-muted); line-height:1.7;" id="poc-class-desc">—</div>
-    </div>
-  </div>
+  </div><!-- /build-panel -->
 
 </div><!-- /sidebar -->
 
@@ -474,6 +564,15 @@ pairings: [{id, label, color,
 <div id="viewport">
   <canvas id="canvas"></canvas>
   <svg id="pair-svg"></svg>
+
+  <!-- Type annotation overlay (Lab mode) -->
+  <div id="type-annotation" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    pointer-events:none;text-align:center;z-index:8;opacity:0;transition:opacity .6s">
+    <div id="annotation-type" style="font-size:48px;font-weight:900;color:var(--accent);
+      text-shadow:0 0 40px color-mix(in srgb,var(--accent) 60%,transparent)">T1</div>
+    <div id="annotation-label" style="font-size:16px;font-weight:600;color:var(--text);margin-top:4px"></div>
+    <div id="annotation-desc" style="font-size:12px;color:var(--text-muted);max-width:340px;margin-top:6px;line-height:1.5"></div>
+  </div>
 
   <!-- Pairing Modal -->
   <div id="pair-modal" onmousedown="event.stopPropagation()">
@@ -515,11 +614,80 @@ pairings: [{id, label, color,
 // ═══════════════════════════════════════════════
 const PAIR_COLORS = ['#7b6ef6','#3ecfcf','#f0c060','#f06060','#60f090','#f060c0','#60a0f0','#f0a060'];
 
+const TYPE_DEFS = {
+  1: {
+    name: 'Full Tensegrity Health',
+    color: '#3ecfcf',
+    desc: 'Tension and compression in dynamic balance. Pre-stress distributed across the network. Holds under load and re-tensions after pressure releases.',
+    annotation: 'Structure maintaining integrity under load',
+    preset: 'icosahedron',
+    tensionPct: 90,
+    rc: 100,
+  },
+  2: {
+    name: 'Pre-Stress Depletion',
+    color: '#60d0a0',
+    desc: 'Correct topology, insufficient stored energy. Looks healthy at rest, fails under perturbation. The most dangerous class: passes static inspection, fails dynamic testing.',
+    annotation: 'Looks healthy — watch what happens under load',
+    preset: 'icosahedron',
+    tensionPct: 35,
+    rc: 65,
+  },
+  3: {
+    name: 'Compression Dominance',
+    color: '#f0c060',
+    desc: 'Governing constraints over-applied relative to tensional elements. Rigid, less adaptable, but tensegrity memory intact. Reversible if tensional investment resumes.',
+    annotation: 'Compression dominance: rigidity replacing adaptability',
+    preset: 'tower3',
+    tensionPct: 60,
+    rc: 80,
+  },
+  4: {
+    name: 'Tension Dominance',
+    color: '#60a0f0',
+    desc: 'Enabling constraints present without sufficient governing constraints. Flexible but under-specified for load-bearing. Common in early-stage organizations.',
+    annotation: 'Tension dominance: flexible but fragile',
+    preset: 'prism3',
+    tensionPct: 95,
+    rc: 70,
+  },
+  5: {
+    name: 'Strategic Compression',
+    color: '#c060f0',
+    desc: 'Active release of tension as a survival strategy, retaining full tensegrity memory and demonstrable re-tensioning capacity. Falsifiability test: release pressure and watch.',
+    annotation: 'Strategic compression — re-tensioning capacity retained',
+    preset: 'tower2',
+    tensionPct: 45,
+    rc: 90,
+  },
+  6: {
+    name: 'Pathological Compression',
+    color: '#f06060',
+    desc: 'Compression imposed by external force or internal capture. Tensegrity memory under active erosion. Re-tensioning capacity degraded. Distinguished from T5 by involuntary character.',
+    annotation: 'Pathological compression: re-tensioning capacity degrading',
+    preset: 'prism4',
+    tensionPct: 25,
+    rc: 20,
+  },
+  7: {
+    name: 'Cascade Disruption',
+    color: '#f04040',
+    desc: 'Compression has progressed beyond the point where T5/T6 can be distinguished. Tensegrity memory and re-tensioning capacity both unknown. The Chaotic domain equivalent.',
+    annotation: 'Cascade disruption: structural coherence lost',
+    preset: 'prism3',
+    tensionPct: 5,
+    rc: 5,
+  },
+};
+
 // ═══════════════════════════════════════════════
 // GEOMETRY LIBRARY (symmetric presets)
 // ═══════════════════════════════════════════════
 const PRESETS = {
-  prism3(twist=150, aspect=1.4, scale=1.0) {
+  prism3(twist, aspect, scale) {
+    if (twist === undefined) twist = 150;
+    if (aspect === undefined) aspect = 1.4;
+    if (scale === undefined) scale = 1.0;
     const r=scale, h=r*aspect, phi=twist*Math.PI/180;
     const t2=2*Math.PI/3, t4=4*Math.PI/3;
     const c=Math.cos, s=Math.sin;
@@ -531,7 +699,10 @@ const PRESETS = {
     const cableDefs=[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,4],[1,5],[2,3]];
     return buildTopologyObject(verts, strutDefs, cableDefs, 'D₃','3-Strut Prism','Simplex · 3 struts, 9 cables');
   },
-  prism4(twist=135, aspect=1.4, scale=1.0) {
+  prism4(twist, aspect, scale) {
+    if (twist === undefined) twist = 135;
+    if (aspect === undefined) aspect = 1.4;
+    if (scale === undefined) scale = 1.0;
     const r=scale, h=r*aspect, phi=twist*Math.PI/180, q=Math.PI/2;
     const c=Math.cos, s=Math.sin;
     const verts=[[r,0,0],[0,r,0],[-r,0,0],[0,-r,0],
@@ -542,7 +713,8 @@ const PRESETS = {
       [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,5],[1,6],[2,7],[3,4],[0,7],[1,4],[2,5],[3,6]],
       'D₄','4-Strut Antiprism','Square · 4 struts, 16 cables');
   },
-  icosahedron(twist=150, aspect=1.4, scale=1.0) {
+  icosahedron(twist, aspect, scale) {
+    if (scale === undefined) scale = 1.0;
     const l=scale, d=l*0.5;
     const verts=[[0,d,l],[0,d,-l],[0,-d,-l],[0,-d,l],
       [d,l,0],[d,-l,0],[-d,-l,0],[-d,l,0],[l,0,d],[-l,0,d],[-l,0,-d],[l,0,-d]];
@@ -553,13 +725,18 @@ const PRESETS = {
        [4,8],[4,11],[5,8],[5,9],[6,9],[6,10],[7,10],[7,11]],
       'O (chiral)','Tensegrity Icosahedron','Jessen · 6 struts, 24 cables');
   },
-  tower2(twist=150, aspect=1.4, scale=1.0) {
+  tower2(twist, aspect, scale) {
+    if (scale === undefined) scale = 1.0;
+    if (aspect === undefined) aspect = 1.4;
     return buildTower(2, scale*0.8, scale*aspect);
   },
-  tower3(twist=150, aspect=1.3, scale=1.0) {
+  tower3(twist, aspect, scale) {
+    if (scale === undefined) scale = 1.0;
+    if (aspect === undefined) aspect = 1.3;
     return buildTower(3, scale*0.6, scale*aspect);
   },
-  torus(twist=150, aspect=1.4, scale=1.0) {
+  torus(twist, aspect, scale) {
+    if (scale === undefined) scale = 1.0;
     const Rt=scale*2.2, r=scale*0.55, theta=Math.PI/3, n=4, m=3;
     const seg0=[];
     for(let i=0;i<m;i++){const a=i*2*Math.PI/m; seg0.push([Rt+r*Math.cos(a),0,r*Math.sin(a)]);}
@@ -639,6 +816,14 @@ const state = {
   pressureReleased: false,
   pressureReleaseTime: 0,
   _pairIdCounter: 1,
+  // Lab mode state
+  mode: 'lab',
+  labPressure: 0,
+  labRC: 100,
+  labInitialPositions: [],
+  labPressureWasApplied: false,
+  currentLabType: 1,
+  labMode: true,
 };
 
 // ═══════════════════════════════════════════════
@@ -659,7 +844,6 @@ function resizeRenderer(){
   const vp=document.getElementById('viewport');
   const w=vp.clientWidth, h=vp.clientHeight;
   renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
-  // resize SVG
   const svg=document.getElementById('pair-svg');
   svg.setAttribute('width',w); svg.setAttribute('height',h);
 }
@@ -668,7 +852,6 @@ window.addEventListener('resize',resizeRenderer); resizeRenderer();
 // Orbit
 const orbit={isDragging:false,lastX:0,lastY:0,theta:0.5,phi:0.8,radius:6,minRadius:0.5,maxRadius:80};
 function fitToView(span) {
-  // Set camera distance and zoom bounds based on structure span
   const ideal = span * 1.8 + 2;
   orbit.radius = ideal;
   orbit.minRadius = Math.max(0.3, span * 0.15);
@@ -682,22 +865,92 @@ function updateCamera(){
   camera.lookAt(0,0,0);
 }
 updateCamera();
-canvas.addEventListener('mousedown',e=>{orbit.isDragging=true;orbit.lastX=e.clientX;orbit.lastY=e.clientY;});
-window.addEventListener('mousemove',e=>{
-  if(!orbit.isDragging)return;
-  orbit.theta-=(e.clientX-orbit.lastX)*0.008;
-  orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.clientY-orbit.lastY)*0.008));
-  orbit.lastX=e.clientX; orbit.lastY=e.clientY; updateCamera();
+
+// ── NODE DRAG (Lab mode) ──
+let dragNode = null;
+let dragPlane = null;
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+canvas.addEventListener('mousedown', e => {
+  if (state.mode !== 'lab') {
+    orbit.isDragging = true;
+    orbit.lastX = e.clientX;
+    orbit.lastY = e.clientY;
+    return;
+  }
+  // Lab mode: try to hit a node first
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(nodeMeshes);
+  if (hits.length > 0) {
+    const nodeIdx = hits[0].object.userData.idx;
+    dragNode = nodeIdx;
+    dragPlane = new THREE.Plane();
+    dragPlane.setFromNormalAndCoplanarPoint(
+      camera.position.clone().normalize(),
+      new THREE.Vector3(...state.simNodes[nodeIdx].pos)
+    );
+    e.stopPropagation();
+  } else {
+    // Start orbit if no node hit
+    orbit.isDragging = true;
+    orbit.lastX = e.clientX;
+    orbit.lastY = e.clientY;
+  }
 });
-window.addEventListener('mouseup',()=>orbit.isDragging=false);
-canvas.addEventListener('wheel',e=>{
+
+window.addEventListener('mousemove', e => {
+  if (dragNode !== null && state.mode === 'lab') {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(dragPlane, target);
+    if (target && state.simNodes[dragNode]) {
+      const n = state.simNodes[dragNode];
+      const dx = target.x - n.pos[0];
+      const dy = target.y - n.pos[1];
+      const dz = target.z - n.pos[2];
+      n.vel[0] = dx * 8;
+      n.vel[1] = dy * 8;
+      n.vel[2] = dz * 8;
+    }
+    return;
+  }
+  if (!orbit.isDragging) return;
+  orbit.theta -= (e.clientX - orbit.lastX) * 0.008;
+  orbit.phi = Math.max(0.1, Math.min(Math.PI - 0.1, orbit.phi + (e.clientY - orbit.lastY) * 0.008));
+  orbit.lastX = e.clientX;
+  orbit.lastY = e.clientY;
+  updateCamera();
+});
+
+window.addEventListener('mouseup', () => {
+  dragNode = null;
+  dragPlane = null;
+  orbit.isDragging = false;
+});
+
+canvas.addEventListener('wheel', e => {
   const delta = e.deltaY * 0.012;
   orbit.radius = Math.max(orbit.minRadius, Math.min(orbit.maxRadius, orbit.radius + delta));
   updateCamera();
-},{passive:true});
-canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){orbit.isDragging=true;orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;}});
-canvas.addEventListener('touchmove',e=>{if(!orbit.isDragging||e.touches.length!==1)return;orbit.theta-=(e.touches[0].clientX-orbit.lastX)*0.008;orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.touches[0].clientY-orbit.lastY)*0.008));orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;updateCamera();});
-canvas.addEventListener('touchend',()=>orbit.isDragging=false);
+}, {passive:true});
+
+canvas.addEventListener('touchstart', e => {
+  if(e.touches.length===1){orbit.isDragging=true;orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;}
+});
+canvas.addEventListener('touchmove', e => {
+  if(!orbit.isDragging||e.touches.length!==1)return;
+  orbit.theta-=(e.touches[0].clientX-orbit.lastX)*0.008;
+  orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.touches[0].clientY-orbit.lastY)*0.008));
+  orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;updateCamera();
+});
+canvas.addEventListener('touchend', () => orbit.isDragging=false);
 
 // ═══════════════════════════════════════════════
 // SCENE OBJECT POOLS
@@ -724,7 +977,9 @@ function cylBetween(pA,pB,radius,mat){
   return mesh;
 }
 
-function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
+function makeLabel(text,pos,color,scale){
+  if (color === undefined) color = '#d0d6e8';
+  if (scale === undefined) scale = 0.6;
   const cvs=document.createElement('canvas'); cvs.width=512; cvs.height=128;
   const ctx=cvs.getContext('2d');
   ctx.fillStyle='rgba(13,15,20,0.82)';
@@ -732,7 +987,6 @@ function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
   ctx.fill();
   ctx.fillStyle=color; ctx.font='bold 36px Inter,sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  // Truncate long labels gracefully
   let label=text;
   if(ctx.measureText(label).width>460){
     while(label.length>3 && ctx.measureText(label+'…').width>460) label=label.slice(0,-1);
@@ -742,7 +996,6 @@ function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
   const tex=new THREE.CanvasTexture(cvs);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
   sp.position.set(...pos);
-  // Store the base scale — updateLabelScales() will adjust per camera distance
   sp.userData.baseScale = scale;
   sp.scale.set(scale*1.4,scale*0.35,1);
   return sp;
@@ -750,7 +1003,6 @@ function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
 
 function updateLabelScales(){
   if(!labelSprites.length) return;
-  // Scale labels so they stay readable at any zoom distance
   const distFactor = Math.max(0.3, orbit.radius / 6);
   labelSprites.forEach(sp=>{
     const b = sp.userData.baseScale || 0.6;
@@ -762,7 +1014,8 @@ function updateLabelScales(){
 // ═══════════════════════════════════════════════
 // TENSION COLOR
 // ═══════════════════════════════════════════════
-function tColor(pct,type,slack=false){
+function tColor(pct,type,slack){
+  if (slack === undefined) slack = false;
   if(slack||(type==='cable'&&pct<15)) return '#3a4060';
   if(!state.colorTension) return type==='strut'?'#e0e0f8':'#3ecfcf';
   const t=pct/100;
@@ -775,7 +1028,6 @@ function tColor(pct,type,slack=false){
   }
 }
 
-// Get pairing tint color for a member
 function getMemberPairingColor(type, idx) {
   for (const p of state.pairings) {
     if (p.members.some(m => m.type === type && m.id === idx)) return p.color;
@@ -825,10 +1077,6 @@ function initPhysics(topo){
     const pa=state.simNodes[a].pos, pb=state.simNodes[b].pos;
     const d=pb.map((v,j)=>v-pa[j]);
     const actualDist=Math.sqrt(d.reduce((acc,v)=>acc+v*v,0));
-    // Rest length is SHORTER than initial distance by the tension factor.
-    // A cable at 80% tensionPct has a rest length 20% shorter than the gap,
-    // so it is always actively pulling and provides restoring force after pressure.
-    // Slack cables get restLen = actualDist (zero pretension).
     const tensionFactor = c.slack ? 1.0 : Math.max(0.5, 1.0 - ((c.tensionPct||0)/100)*0.35);
     const rL = actualDist * tensionFactor;
     const effectivePct=(c.tensionPct||100)/100*state.globalPretension;
@@ -841,11 +1089,9 @@ function applyPressureForces(){
   if(state.pressure <= 0) return;
   const ns = state.simNodes;
   if(ns.length === 0) return;
-  // Centroid
   let cx=0,cy=0,cz=0;
   ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
   cx/=ns.length; cy/=ns.length; cz/=ns.length;
-  // Find dominant/convergence node if any
   let biasX=cx, biasY=cy, biasZ=cz;
   const topo=state.topology;
   if(topo){
@@ -868,7 +1114,8 @@ function applyPressureForces(){
   });
 }
 
-function physicsStep(dt=0.016){
+function physicsStep(dt){
+  if (dt === undefined) dt = 0.016;
   const ns=state.simNodes, sp=state.simSprings, damp=state.damping;
   ns.forEach(n=>n.force=[0,0,0]);
   sp.forEach(s=>{
@@ -883,7 +1130,6 @@ function physicsStep(dt=0.016){
     if(!na.pinned){na.force[0]+=fx;na.force[1]+=fy;na.force[2]+=fz;}
     if(!nb.pinned){nb.force[0]-=fx;nb.force[1]-=fy;nb.force[2]-=fz;}
   });
-  // Pressure forces (after spring forces)
   applyPressureForces();
   let cx=0,cy=0,cz=0;
   ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
@@ -897,7 +1143,6 @@ function physicsStep(dt=0.016){
     n.pos[1]+=n.vel[1]*dt-cy;
     n.pos[2]+=n.vel[2]*dt-cz;
   });
-  // sync tension back to topology
   const topo=state.topology;
   sp.forEach(s=>{
     if(s.type==='strut') topo.struts[s.memberIdx].currentForce=s.currentForce;
@@ -905,13 +1150,11 @@ function physicsStep(dt=0.016){
   });
 }
 
-// Restoration check — called every frame after pressure release
+// Build mode restoration check — called every frame after pressure release
 function checkRestoreResponse(){
   if(!state.pressureReleased) return;
   const ns = state.simNodes;
   if(ns.length === 0) return;
-
-  // Measure kinetic energy (avg speed)
   let totalVel = 0;
   ns.forEach(n => totalVel += Math.sqrt(n.vel[0]**2+n.vel[1]**2+n.vel[2]**2));
   const avgVel = totalVel / ns.length;
@@ -919,16 +1162,12 @@ function checkRestoreResponse(){
   const health = computeHealthScore();
   const indicator = document.getElementById('restore-indicator');
   indicator.style.display = 'block';
-
   if(avgVel > 0.005) {
-    // Still moving — show live restore activity
     const pct = Math.min(100, Math.round((elapsed/4000)*100));
     indicator.className = 'restore-indicator restored';
     indicator.textContent = 'Restoring… (' + pct + '%)';
-    return; // keep watching
+    return;
   }
-
-  // Settled — determine outcome
   state.pressureReleased = false;
   if(health < 40) {
     indicator.className = 'restore-indicator deformed';
@@ -937,6 +1176,198 @@ function checkRestoreResponse(){
     indicator.className = 'restore-indicator restored';
     indicator.textContent = 'Restored — structure returned to equilibrium (' + health + '% health)';
   }
+}
+
+// ═══════════════════════════════════════════════
+// LAB TYPE CLASSIFICATION
+// ═══════════════════════════════════════════════
+function computeLiveType() {
+  if (!state.topology || !state.simNodes.length) return 1;
+  const topo = state.topology;
+
+  const activeCables = topo.cables.filter(c => !c.slack);
+  const avgTensionLoad = activeCables.length > 0
+    ? state.simSprings.filter(s => s.type === 'cable').reduce((a, s) => a + s.currentForce, 0) / Math.max(activeCables.length, 1)
+    : 0;
+
+  const avgCompressionLoad = state.simSprings.filter(s => s.type === 'strut').reduce((a, s) => a + s.currentForce, 0) / Math.max(topo.struts.length, 1);
+
+  const pressureNorm = (state.labPressure || 0) / 100;
+  const rc = (state.labRC || 0) / 100;
+
+  if (pressureNorm > 0.7 && rc < 0.3) return 7;
+  if (pressureNorm > 0.5 && rc < 0.4) return 6;
+  if (pressureNorm > 0.3 && rc > 0.7) return 5;
+  if (pressureNorm > 0.4) return 3;
+  if (avgTensionLoad < 5 && pressureNorm < 0.1) return 2;
+  if (avgCompressionLoad < avgTensionLoad * 0.3) return 4;
+  return 1;
+}
+
+// ── TYPE TRANSITION ANNOTATION ──
+let lastAnnotatedType = null;
+function showTypeAnnotation(typeNum) {
+  if (typeNum === lastAnnotatedType) return;
+  lastAnnotatedType = typeNum;
+  const def = TYPE_DEFS[typeNum];
+  if (!def) return;
+  const overlay = document.getElementById('type-annotation');
+  document.getElementById('annotation-type').textContent = 'T' + typeNum;
+  document.getElementById('annotation-type').style.color = def.color;
+  document.getElementById('annotation-label').textContent = def.name;
+  document.getElementById('annotation-desc').textContent = def.annotation;
+  overlay.style.opacity = '1';
+  clearTimeout(window._annotationTimer);
+  window._annotationTimer = setTimeout(() => { overlay.style.opacity = '0'; }, 2500);
+}
+
+// ── LAB HEALTH UPDATE ──
+function updateLabHealth() {
+  if (state.mode !== 'lab') return;
+  const typeNum = computeLiveType();
+  const def = TYPE_DEFS[typeNum] || TYPE_DEFS[1];
+
+  document.getElementById('lab-type-badge').textContent = 'T' + typeNum;
+  document.getElementById('lab-type-badge').style.color = def.color;
+  document.getElementById('lab-type-name').textContent = def.name;
+  document.getElementById('lab-type-detail').textContent = def.desc;
+
+  // Type bar: 7 segments
+  const bar = document.getElementById('type-bar');
+  bar.innerHTML = '';
+  for (let t = 1; t <= 7; t++) {
+    const seg = document.createElement('div');
+    const br = t === 1 ? '3px 0 0 3px' : t === 7 ? '0 3px 3px 0' : '0';
+    const op = t === typeNum ? 1 : t < typeNum ? 0.4 : 0.15;
+    seg.style.cssText = `flex:1;background:${t <= typeNum ? TYPE_DEFS[t].color : 'var(--panel-border)'};border-radius:${br};opacity:${op};transition:background .3s,opacity .3s`;
+    bar.appendChild(seg);
+  }
+
+  // RC bar
+  const rc = Math.round(state.labRC || 0);
+  document.getElementById('lab-rc-value').textContent = rc + '%';
+  document.getElementById('lab-rc-bar').style.width = rc + '%';
+  const rcCol = rc > 60 ? '#3ecfcf' : rc > 30 ? '#f0c060' : '#f06060';
+  document.getElementById('lab-rc-bar').style.background = rcCol;
+  document.getElementById('lab-rc-value').style.color = rcCol;
+
+  if (state.labMode) showTypeAnnotation(typeNum);
+}
+
+// ── LOAD LAB TYPE ──
+function computeSpan(nodes) {
+  const xs = nodes.map(n => n.pos[0]), ys = nodes.map(n => n.pos[1]), zs = nodes.map(n => n.pos[2]);
+  return Math.max(
+    Math.max(...xs) - Math.min(...xs),
+    Math.max(...ys) - Math.min(...ys),
+    Math.max(...zs) - Math.min(...zs),
+    0.5
+  );
+}
+
+function loadLabType(typeNum) {
+  const def = TYPE_DEFS[typeNum];
+  if (!def) return;
+
+  state.preset = def.preset;
+  const geo = PRESETS[def.preset](state.twist || 150, state.aspect || 1.4, state.scale || 1.0);
+
+  // Apply the type's tensionPct to all cables
+  geo.cables.forEach(c => { c.tensionPct = def.tensionPct; c.group = 'default'; });
+
+  state.topology = geo;
+  computeNodeRoles(geo);
+  state.labRC = def.rc;
+  state.labPressure = 0;
+  state.pressure = 0;
+  state.pressureReleased = false;
+  state.labPressureWasApplied = false;
+  const sliderEl = document.getElementById('lab-pressure-slider');
+  if (sliderEl) sliderEl.value = 0;
+  const valEl = document.getElementById('lab-pressure-val');
+  if (valEl) valEl.textContent = '0%';
+  const barEl = document.getElementById('lab-pressure-bar');
+  if (barEl) barEl.style.width = '0%';
+  const statusEl = document.getElementById('lab-restore-status');
+  if (statusEl) statusEl.style.display = 'none';
+
+  // Store initial node positions for RC measurement
+  state.labInitialPositions = geo.nodes.map(n => [...n.pos]);
+
+  initPhysics(geo);
+  rebuildMeshes();
+  if (state.mode === 'build') {
+    refreshMembersTab();
+    updateAnalysis();
+    updateOverlay();
+  }
+  fitToView(computeSpan(geo.nodes));
+
+  // Update type buttons
+  document.querySelectorAll('.type-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.type) === typeNum);
+  });
+
+  // Show type desc
+  const descEl = document.getElementById('type-desc');
+  if (descEl) descEl.textContent = def.desc;
+
+  // Show annotation
+  lastAnnotatedType = null;
+  showTypeAnnotation(typeNum);
+  state.currentLabType = typeNum;
+  updateLabHealth();
+}
+
+// ── TRIGGER RELEASE CHECK ──
+function triggerReleaseCheck() {
+  state.pressureReleased = true;
+  state.pressureReleaseTime = Date.now();
+  state.labPressureWasApplied = false;
+  const status = document.getElementById('lab-restore-status');
+  if (!status) return;
+  status.style.display = 'block';
+  status.className = 'restore-indicator restored';
+  status.style.background = '';
+  status.style.color = '';
+  status.textContent = 'Observing restoration…';
+
+  // After 3s, compute RC update
+  setTimeout(() => {
+    const ns = state.simNodes;
+    if (!ns.length || !state.labInitialPositions || !state.labInitialPositions.length) return;
+    let totalDrift = 0;
+    ns.forEach((n, i) => {
+      const init = state.labInitialPositions[i];
+      if (!init) return;
+      const dx = n.pos[0] - init[0], dy = n.pos[1] - init[1], dz = n.pos[2] - init[2];
+      totalDrift += Math.sqrt(dx * dx + dy * dy + dz * dz);
+    });
+    const avgDrift = totalDrift / ns.length;
+    const maxExpectedDrift = 1.5;
+    const restoreQuality = Math.max(0, 1 - (avgDrift / maxExpectedDrift));
+    state.labRC = Math.max(0, Math.min(100, state.labRC * 0.9 + restoreQuality * 15));
+
+    const statusEl = document.getElementById('lab-restore-status');
+    if (!statusEl) return;
+    if (restoreQuality > 0.7) {
+      statusEl.className = 'restore-indicator restored';
+      statusEl.style.background = '';
+      statusEl.style.color = '';
+      statusEl.textContent = 'Restored — RC: ' + Math.round(state.labRC) + '% (quality: ' + Math.round(restoreQuality * 100) + '%)';
+    } else if (restoreQuality > 0.3) {
+      statusEl.className = 'restore-indicator restored';
+      statusEl.style.background = 'color-mix(in srgb,#f0c060 15%,transparent)';
+      statusEl.style.color = '#f0c060';
+      statusEl.textContent = 'Partial restoration — RC degrading: ' + Math.round(state.labRC) + '%';
+    } else {
+      statusEl.className = 'restore-indicator deformed';
+      statusEl.style.background = '';
+      statusEl.style.color = '';
+      statusEl.textContent = 'Failed to restore — RC: ' + Math.round(state.labRC) + '% — classify as T6';
+    }
+    updateLabHealth();
+  }, 3000);
 }
 
 // ═══════════════════════════════════════════════
@@ -951,7 +1382,6 @@ function buildScene(){
   refreshMembersTab();
   updateAnalysis();
   updateOverlay();
-  // Auto-fit zoom bounds to the preset geometry
   const allPos = geo.nodes.map(n=>n.pos);
   const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
   const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs),0.5);
@@ -979,7 +1409,7 @@ function loadCustomTopology(json){
       slack:c.slack||false, currentForce:0
     }));
 
-    const sym = data.parameters?.symmetry||topo.symmetry||'Custom (asymmetric)';
+    const sym = (data.parameters && data.parameters.symmetry) || topo.symmetry || 'Custom (asymmetric)';
     const customTopo={
       nodes:nds, struts:sts, cables:cbs,
       symmetry:sym, name:data.geometry||'Custom Topology',
@@ -991,7 +1421,6 @@ function loadCustomTopology(json){
 
     state.topology=customTopo;
 
-    // Load pairings if present
     if(topo.pairings && Array.isArray(topo.pairings)){
       state.pairings = topo.pairings.map(p=>({
         id: p.id || state._pairIdCounter++,
@@ -1025,10 +1454,8 @@ function loadCustomTopology(json){
 }
 
 // ═══════════════════════════════════════════════
-// SCHEMATIC MODE — group-aware, strut-dominant rendering
+// SCHEMATIC MODE
 // ═══════════════════════════════════════════════
-
-// Palette matching PAIR_COLORS but softer for fill
 const GROUP_COLORS = {
   'generative-1': '#7b6ef6',
   'generative-2': '#3ecfcf',
@@ -1048,7 +1475,6 @@ function groupColorFor(groupName, idx) {
 }
 
 function buildSchematicGroups(topo, ns) {
-  // Remove old group meshes
   schematicGroupMeshes.forEach(o=>{
     scene.remove(o);
     if(o.geometry) o.geometry.dispose();
@@ -1056,33 +1482,25 @@ function buildSchematicGroups(topo, ns) {
   });
   schematicGroupMeshes = [];
 
-  // Collect cable groups
   const groups = {};
   topo.cables.forEach(c=>{
-    if(c.slack) return; // skip slack cables entirely in schematic
+    if(c.slack) return;
     const gname = c.group || '__ungrouped';
     if(!groups[gname]) groups[gname] = [];
     groups[gname].push(c);
   });
 
   const groupNames = Object.keys(groups);
-
   groupNames.forEach((gname, gi) => {
     const cables = groups[gname];
     const col = new THREE.Color(groupColorFor(gname, gi));
-
-    // For each cable in the group, draw a fat translucent tube (schematic bundle)
     cables.forEach(c=>{
       const [a,b] = c.nodes;
       if(a>=ns.length||b>=ns.length) return;
-
       const health = (c.tensionPct||0) / 100;
-      const radius = 0.025 + health * 0.055; // thicker = more tension
+      const radius = 0.025 + health * 0.055;
       const opacity = 0.18 + health * 0.55;
-
-      const mat = new THREE.MeshBasicMaterial({
-        color: col, transparent: true, opacity, side: THREE.DoubleSide
-      });
+      const mat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity, side:THREE.DoubleSide});
       const mesh = cylBetween(ns[a].pos, ns[b].pos, radius, mat);
       if(mesh) {
         mesh.userData = { type:'cable', idx: topo.cables.indexOf(c), schematic:true };
@@ -1091,22 +1509,12 @@ function buildSchematicGroups(topo, ns) {
       }
     });
 
-    // Draw a group label at the centroid of the group's cable midpoints
-    const cx = cables.reduce((s,c)=>{
-      const [a,b]=c.nodes;
-      return s + (ns[a]?.pos[0]||0)/2 + (ns[b]?.pos[0]||0)/2;
-    },0) / cables.length;
-    const cy = cables.reduce((s,c)=>{
-      const [a,b]=c.nodes;
-      return s + (ns[a]?.pos[1]||0)/2 + (ns[b]?.pos[1]||0)/2;
-    },0) / cables.length;
-    const cz = cables.reduce((s,c)=>{
-      const [a,b]=c.nodes;
-      return s + (ns[a]?.pos[2]||0)/2 + (ns[b]?.pos[2]||0)/2;
-    },0) / cables.length;
+    const cx2 = cables.reduce((s,c)=>{ const [a,b]=c.nodes; return s+(ns[a]&&ns[a].pos[0]||0)/2+(ns[b]&&ns[b].pos[0]||0)/2; },0) / cables.length;
+    const cy2 = cables.reduce((s,c)=>{ const [a,b]=c.nodes; return s+(ns[a]&&ns[a].pos[1]||0)/2+(ns[b]&&ns[b].pos[1]||0)/2; },0) / cables.length;
+    const cz2 = cables.reduce((s,c)=>{ const [a,b]=c.nodes; return s+(ns[a]&&ns[a].pos[2]||0)/2+(ns[b]&&ns[b].pos[2]||0)/2; },0) / cables.length;
 
     const labelText = gname === '__ungrouped' ? 'Ungrouped' : gname;
-    const sp = makeLabel(labelText, [cx, cy+0.3, cz], '#'+col.getHexString(), 0.55);
+    const sp = makeLabel(labelText, [cx2, cy2+0.3, cz2], '#'+col.getHexString(), 0.55);
     scene.add(sp);
     schematicGroupMeshes.push(sp);
   });
@@ -1116,11 +1524,6 @@ function updateSchematicPositions() {
   const topo = state.topology;
   const ns = state.simNodes;
   if(!topo || !ns.length) return;
-
-  // Rebuild is cheap enough for schematic mode (group tubes need position updates)
-  // Instead of updating each mesh, just rebuild at lower frequency
-  // (handled by rebuildMeshes being called when schematic toggled)
-  // Per-frame: update the tube transforms directly
   let idx = 0;
   const groups = {};
   topo.cables.forEach(c=>{
@@ -1129,7 +1532,6 @@ function updateSchematicPositions() {
     if(!groups[gname]) groups[gname] = [];
     groups[gname].push(c);
   });
-
   Object.values(groups).forEach(cables=>{
     cables.forEach(c=>{
       if(idx >= schematicGroupMeshes.length) return;
@@ -1156,7 +1558,6 @@ function rebuildMeshes(){
   const topo=state.topology;
   const ns=state.simNodes;
 
-  // Struts — thicker and more prominent in schematic mode
   const strutRadius = state.schematic ? 0.1 : 0.05;
   topo.struts.forEach((s,i)=>{
     const [a,b]=s.nodes;
@@ -1181,7 +1582,6 @@ function rebuildMeshes(){
     if(m){m.userData={type:'strut',idx:i};scene.add(m);strutMeshes.push(m);}
   });
 
-  // Cables — hidden entirely in schematic mode (replaced by group bundles)
   if(!state.schematic){
     topo.cables.forEach((c,i)=>{
       const [a,b]=c.nodes;
@@ -1202,10 +1602,8 @@ function rebuildMeshes(){
     });
   }
 
-  // Schematic group bundles
   if(state.schematic) buildSchematicGroups(topo, ns);
 
-  // Nodes
   if(state.showNodes){
     topo.nodes.forEach((n,i)=>{
       if(i>=ns.length)return;
@@ -1232,7 +1630,6 @@ function rebuildMeshes(){
     });
   }
 
-  // Labels
   if(state.showLabels){
     topo.struts.forEach((s,i)=>{
       const lbl=s.label; if(!lbl||lbl===`Strut ${i+1}`)return;
@@ -1261,7 +1658,7 @@ function updateMeshPositions(){
     const vA=new THREE.Vector3(...ns[a].pos), vB=new THREE.Vector3(...ns[b].pos);
     const dir=new THREE.Vector3().subVectors(vB,vA); const len=dir.length();
     if(len<1e-8)return;
-    const pct=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===i)?.currentForce||0;
+    const pct=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===i)?state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===i).currentForce:0;
     let baseCol=tColor(pct,'strut');
     const pairCol=getMemberPairingColor('strut',i);
     if(pairCol){const bc=new THREE.Color(baseCol);bc.lerp(new THREE.Color(pairCol),0.3);baseCol='#'+bc.getHexString();}
@@ -1275,7 +1672,7 @@ function updateMeshPositions(){
     if(i>=topo.cables.length)return;
     const c=topo.cables[i]; const [a,b]=c.nodes; if(a>=ns.length||b>=ns.length)return;
     const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===i);
-    const rawForce=sp?.currentForce||0;
+    const rawForce=sp?sp.currentForce:0;
     const effectivePct=rawForce>0?(rawForce/(600*0.3))*100:c.tensionPct;
     let baseCol=tColor(effectivePct,'cable',c.slack);
     const pairCol=getMemberPairingColor('cable',i);
@@ -1320,10 +1717,7 @@ function worldToScreen(vec3){
   const vp = document.getElementById('viewport');
   const w = vp.clientWidth, h = vp.clientHeight;
   const v = vec3.clone().project(camera);
-  return {
-    x: (v.x * 0.5 + 0.5) * w,
-    y: (-v.y * 0.5 + 0.5) * h
-  };
+  return { x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h };
 }
 
 function getMemberMidpoint(type, id){
@@ -1361,10 +1755,7 @@ function getMemberEndpoints(type, id){
   }
   const [a, b] = nodes;
   if(a >= ns.length || b >= ns.length) return null;
-  return [
-    new THREE.Vector3(...ns[a].pos),
-    new THREE.Vector3(...ns[b].pos)
-  ];
+  return [ new THREE.Vector3(...ns[a].pos), new THREE.Vector3(...ns[b].pos) ];
 }
 
 function getMemberHealth(type, id){
@@ -1385,35 +1776,28 @@ function updatePairSVG(){
   const svg = document.getElementById('pair-svg');
   svg.innerHTML = '';
   if(!state.showPairings || state.pairings.length === 0) return;
-
-  // Camera up direction in screen for arc offsets
   const camUp = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
 
   state.pairings.forEach(pairing => {
     const isActive = state.activePairingId === pairing.id;
     const isHighlighted = isActive ||
       pairing.members.some(m => m.type === state.selectedType && m.id === state.selectedIdx);
-
-    // Compute avg health
     let healthSum = 0;
     pairing.members.forEach(m => { healthSum += getMemberHealth(m.type, m.id); });
     const avgHealth = pairing.members.length > 0 ? healthSum / pairing.members.length : 0.5;
-
     const strokeW = (1.5 + avgHealth*6) * (isHighlighted ? 2 : 1);
     const opacity = isHighlighted ? 1 : (0.15 + avgHealth*0.6);
 
     if(pairing.members.length < 2) return;
 
     if(pairing.members.length === 2){
-      // Simple arc between midpoints
       const mp0 = getMemberMidpoint(pairing.members[0].type, pairing.members[0].id);
       const mp1 = getMemberMidpoint(pairing.members[1].type, pairing.members[1].id);
       if(!mp0 || !mp1) return;
       const s0 = worldToScreen(mp0);
       const s1 = worldToScreen(mp1);
       const mx = (s0.x+s1.x)/2, my = (s0.y+s1.y)/2;
-      const healthFactor = avgHealth;
-      const offset = 40 * healthFactor;
+      const offset = 40 * avgHealth;
       const cx2 = mx - camUp.y * offset;
       const cy2 = my + camUp.x * offset;
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -1425,20 +1809,13 @@ function updatePairSVG(){
       path.setAttribute('stroke-linecap','round');
       svg.appendChild(path);
     } else {
-      // Multi-member: hub (first member) connects to each other member
       const hub = pairing.members[0];
-      const hubEps = getMemberEndpoints(hub.type, hub.id);
-      if(!hubEps) return;
       const hubMid = getMemberMidpoint(hub.type, hub.id);
       if(!hubMid) return;
-
       for(let i = 1; i < pairing.members.length; i++){
         const m = pairing.members[i];
-        const eps = getMemberEndpoints(m.type, m.id);
-        if(!eps) continue;
         const mMid = getMemberMidpoint(m.type, m.id);
         if(!mMid) continue;
-        // Arc from hub midpoint endpoint to member midpoint
         const sHub = worldToScreen(hubMid);
         const sMem = worldToScreen(mMid);
         const mx2 = (sHub.x+sMem.x)/2, my2 = (sHub.y+sMem.y)/2;
@@ -1456,7 +1833,6 @@ function updatePairSVG(){
       }
     }
 
-    // Pairing label overlay when a member of this pairing is selected
     if(state.selectedType && state.selectedIdx !== null){
       const isMember = pairing.members.some(m => m.type === state.selectedType && m.id === state.selectedIdx);
       if(isMember){
@@ -1482,9 +1858,8 @@ function updatePairSVG(){
 // ═══════════════════════════════════════════════
 // RAYCASTING + SELECTION / PAIRING
 // ═══════════════════════════════════════════════
-const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
-canvas.addEventListener('click',e=>{
-  if(orbit.isDragging)return;
+canvas.addEventListener('click', e => {
+  if(orbit.isDragging) return;
   const rect=canvas.getBoundingClientRect();
   mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
   mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
@@ -1492,28 +1867,23 @@ canvas.addEventListener('click',e=>{
   const hits=raycaster.intersectObjects([...strutMeshes,...nodeMeshes]);
 
   if(e.shiftKey){
-    // Shift-click: pairing mode
+    if(state.mode === 'lab') return; // no pairing in lab mode
     if(hits.length > 0){
       const ud = hits[0].object.userData;
-      if(ud.type === 'node') return; // only struts/cables for pairing
+      if(ud.type === 'node') return;
       const entry = {type: ud.type, id: ud.idx};
-      // Avoid duplicates
       const dup = state.pendingPairMembers.some(m => m.type === entry.type && m.id === entry.id);
       if(!dup) state.pendingPairMembers.push(entry);
       openPairingModal();
-    } else if(!state.pairingPanelOpen) {
-      // Shift-click on empty: do nothing
     }
     return;
   }
 
-  // Normal click
   closePairingModal();
   if(hits.length>0) selectMember(hits[0].object.userData.type,hits[0].object.userData.idx);
 });
 
-// Also raycast cables (lines) on click
-canvas.addEventListener('click',e=>{
+canvas.addEventListener('click', e => {
   if(orbit.isDragging || e.shiftKey) return;
   const rect=canvas.getBoundingClientRect();
   mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
@@ -1524,9 +1894,8 @@ canvas.addEventListener('click',e=>{
   if(lineHits.length > 0){
     selectMember('cable', lineHits[0].object.userData.idx);
   }
-},{capture:false});
+}, {capture:false});
 
-// Escape to cancel pairing
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape') closePairingModal();
 });
@@ -1541,19 +1910,19 @@ function selectMember(type,idx){
     document.getElementById('sel-type').textContent='COMPRESSION MEMBER';
     document.getElementById('sel-name').textContent=s.label||`Strut ${idx+1}`;
     document.getElementById('sel-detail').innerHTML=
-      `Score: ${s.score!=null?s.score+'/10':'—'}<br>Rest scale: ${s.restLengthScale||1.0}<br>Force: ${s.currentForce?.toFixed(2)||'0'}`;
+      `Score: ${s.score!=null?s.score+'/10':'—'}<br>Rest scale: ${s.restLengthScale||1.0}<br>Force: ${s.currentForce?s.currentForce.toFixed(2):'0'}`;
   } else if(type==='cable'){
     const c=topo.cables[idx];
     document.getElementById('sel-type').textContent='TENSION MEMBER';
     document.getElementById('sel-name').textContent=c.label||`Cable ${idx+1}`;
     document.getElementById('sel-detail').innerHTML=
-      `Tension: ${c.tensionPct}%<br>Group: ${c.group||'—'}<br>Slack: ${c.slack?'yes':'no'}<br>Force: ${c.currentForce?.toFixed(2)||'0'}`;
+      `Tension: ${c.tensionPct}%<br>Group: ${c.group||'—'}<br>Slack: ${c.slack?'yes':'no'}<br>Force: ${c.currentForce?c.currentForce.toFixed(2):'0'}`;
   } else if(type==='node'){
     const n=topo.nodes[idx];
     document.getElementById('sel-type').textContent='NODE';
     document.getElementById('sel-name').textContent=n.label||`N${idx}`;
     document.getElementById('sel-detail').innerHTML=
-      `Role: ${n.role}<br>Cables: ${n.connectedCables}<br>Load: ${n.tensionLoad?.toFixed(2)||'—'}`;
+      `Role: ${n.role}<br>Cables: ${n.connectedCables}<br>Load: ${n.tensionLoad?n.tensionLoad.toFixed(2):'—'}`;
   }
 }
 
@@ -1580,10 +1949,7 @@ function closePairingModal(){
 
 function renderPairingModal(){
   const topo = state.topology;
-  const modal = document.getElementById('pair-modal');
-  // Badge
   document.getElementById('pair-count-badge').textContent = state.pendingPairMembers.length;
-  // Member list
   const list = document.getElementById('pair-member-list');
   list.innerHTML = '';
   state.pendingPairMembers.forEach((m, i) => {
@@ -1599,42 +1965,30 @@ function renderPairingModal(){
       <button class="pair-remove-btn" onclick="removePendingMember(${i})">×</button>`;
     list.appendChild(row);
   });
-  // Color swatches
   const swatchRow = document.getElementById('color-swatch-row');
   swatchRow.innerHTML = '';
   PAIR_COLORS.forEach(c => {
     const sw = document.createElement('div');
     sw.className = 'color-swatch' + (c === state.selectedPairColor ? ' selected' : '');
     sw.style.background = c;
-    sw.onclick = () => {
-      state.selectedPairColor = c;
-      renderPairingModal();
-    };
+    sw.onclick = () => { state.selectedPairColor = c; renderPairingModal(); };
     swatchRow.appendChild(sw);
   });
 }
 
 function removePendingMember(i){
   state.pendingPairMembers.splice(i, 1);
-  if(state.pendingPairMembers.length === 0){
-    closePairingModal();
-    return;
-  }
+  if(state.pendingPairMembers.length === 0){ closePairingModal(); return; }
   renderPairingModal();
 }
 
 document.getElementById('btn-pair-confirm').addEventListener('click', () => {
   if(state.pendingPairMembers.length < 2) return;
   const label = document.getElementById('pair-label-input').value || 'Pairing';
-  const pairing = {
-    id: state._pairIdCounter++,
-    label,
-    color: state.selectedPairColor,
-    members: [...state.pendingPairMembers]
-  };
+  const pairing = { id: state._pairIdCounter++, label, color: state.selectedPairColor, members: [...state.pendingPairMembers] };
   state.pairings.push(pairing);
   refreshPairingsTab();
-  rebuildMeshes(); // tint members
+  rebuildMeshes();
   closePairingModal();
   document.getElementById('pair-label-input').value = '';
 });
@@ -1695,10 +2049,7 @@ fileInput.addEventListener('change', e => {
   fileInput.value = '';
 });
 
-dropZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  dropZone.classList.add('drag-over');
-});
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
@@ -1707,7 +2058,6 @@ dropZone.addEventListener('drop', e => {
   if(file) readFileAndLoad(file);
 });
 
-// Drag-and-drop on viewport canvas too
 const viewportEl = document.getElementById('viewport');
 viewportEl.addEventListener('dragover', e => { e.preventDefault(); });
 viewportEl.addEventListener('drop', e => {
@@ -1727,10 +2077,7 @@ function readFileAndLoad(file){
     document.getElementById('json-import').value = json;
     const result = loadCustomTopology(json);
     showImportStatus(result.ok, result.msg);
-    if(result.ok){
-      // Auto-switch to Analysis tab
-      switchTab('analysis');
-    }
+    if(result.ok){ switchTab('analysis'); }
   };
   reader.onerror = () => showImportStatus(false, 'Failed to read file');
   reader.readAsText(file);
@@ -1739,8 +2086,10 @@ function readFileAndLoad(file){
 function switchTab(tabId){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-  document.getElementById(`tab-${tabId}`).classList.add('active');
+  const tabEl = document.querySelector(`[data-tab="${tabId}"]`);
+  const contentEl = document.getElementById(`tab-${tabId}`);
+  if(tabEl) tabEl.classList.add('active');
+  if(contentEl) contentEl.classList.add('active');
   if(tabId==='analysis') updateAnalysis();
 }
 
@@ -1765,10 +2114,8 @@ function refreshMembersTab(){
       </div>
       <div class="member-controls" id="strut-ctrl-${i}" style="display:none">
         <div class="slider-row">
-          <div class="slider-header">
-            <span class="slider-label">Label</span>
-          </div>
-          <input type="text" class="org-input" style="font-size:10px;padding:3px 7px;margin-bottom:5px" value="${s.label}" 
+          <div class="slider-header"><span class="slider-label">Label</span></div>
+          <input type="text" class="org-input" style="font-size:10px;padding:3px 7px;margin-bottom:5px" value="${s.label}"
             onchange="renameStrut(${i},this.value)" />
         </div>
         <div class="slider-row">
@@ -1839,14 +2186,8 @@ function toggleMemberExpand(btn,ctrlId){
   btn.textContent=el.style.display==='none'?'▾':'▴';
 }
 
-function renameStrut(idx,val){
-  state.topology.struts[idx].label=val||`Strut ${idx+1}`;
-  rebuildMeshes();
-}
-function renameCable(idx,val){
-  state.topology.cables[idx].label=val||`Cable ${idx+1}`;
-  rebuildMeshes();
-}
+function renameStrut(idx,val){ state.topology.struts[idx].label=val||`Strut ${idx+1}`; rebuildMeshes(); }
+function renameCable(idx,val){ state.topology.cables[idx].label=val||`Cable ${idx+1}`; rebuildMeshes(); }
 function updateStrutScale(idx,val){
   state.topology.struts[idx].restLengthScale=val;
   const sp=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===idx);
@@ -1857,10 +2198,7 @@ function updateStrutScale(idx,val){
     sp.restLen=Math.sqrt(d.reduce((acc,v)=>acc+v*v,0))*val;
   }
 }
-function updateStrutScore(idx,val){
-  state.topology.struts[idx].score=val;
-  updateAnalysis();
-}
+function updateStrutScore(idx,val){ state.topology.struts[idx].score=val; updateAnalysis(); }
 function updateCableTension(idx,val){
   state.topology.cables[idx].tensionPct=val;
   const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===idx);
@@ -1875,9 +2213,7 @@ function updateCableSlack(idx,val){
   computeNodeRoles(state.topology);
   rebuildMeshes(); refreshMembersTab(); updateAnalysis();
 }
-function updateCableGroup(idx,val){
-  state.topology.cables[idx].group=val;
-}
+function updateCableGroup(idx,val){ state.topology.cables[idx].group=val; }
 
 // ═══════════════════════════════════════════════
 // ANALYSIS
@@ -1975,7 +2311,7 @@ function exportTopology(){
   const data={
     organization:state.orgName,
     geometry:topo.name, preset:state.topology.isCustom?'custom':state.preset,
-    pocVersion:'0.3',
+    pocVersion:'0.4',
     parameters:{twist:state.twist,aspect:state.aspect,scale:state.scale},
     topology:{
       nodes:topo.nodes.map(n=>({id:n.id,label:n.label,pos:n.pos,role:n.role})),
@@ -1988,12 +2324,12 @@ function exportTopology(){
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download=`${state.orgName.replace(/\s+/g,'-')}-tensegrity-v03.json`; a.click();
+  a.href=url; a.download=`${state.orgName.replace(/\s+/g,'-')}-tensegrity-v04.json`; a.click();
   URL.revokeObjectURL(url);
 }
 
 // ═══════════════════════════════════════════════
-// ACROSS PROTOCOL EXAMPLE JSON (embedded)
+// ACROSS PROTOCOL EXAMPLE JSON
 // ═══════════════════════════════════════════════
 const ACROSS_JSON=`{
   "organization": "Across Protocol",
@@ -2029,14 +2365,118 @@ const ACROSS_JSON=`{
 }`;
 
 // ═══════════════════════════════════════════════
-// UI WIRING
+// MODE BAR WIRING
+// ═══════════════════════════════════════════════
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (mode === state.mode) return;
+    state.mode = mode;
+    state.labMode = (mode === 'lab');
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('lab-panel').style.display = mode === 'lab' ? 'block' : 'none';
+    document.getElementById('build-panel').style.display = mode === 'build' ? 'block' : 'none';
+
+    if (mode === 'lab') {
+      // Re-sync pressure to labPressure
+      state.pressure = state.labPressure;
+      updateLabHealth();
+    } else {
+      // In build mode, clear lab pressure from physics
+      state.pressure = 0;
+      document.getElementById('sl-pressure').value = 0;
+      document.getElementById('val-pressure').textContent = '0';
+      document.getElementById('pressure-bar-cover').style.width = '100%';
+      refreshMembersTab();
+      updateAnalysis();
+      updateOverlay();
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════
+// LAB PANEL WIRING
+// ═══════════════════════════════════════════════
+
+// Type preset buttons
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    loadLabType(parseInt(btn.dataset.type));
+  });
+});
+
+// Pressure slider
+document.getElementById('lab-pressure-slider').addEventListener('input', e => {
+  state.labPressure = parseInt(e.target.value);
+  state.pressure = state.labPressure;
+  document.getElementById('lab-pressure-val').textContent = state.labPressure + '%';
+  document.getElementById('lab-pressure-bar').style.width = state.labPressure + '%';
+  if (state.labPressure === 0 && state.labPressureWasApplied) {
+    triggerReleaseCheck();
+  }
+  if (state.labPressure > 0) state.labPressureWasApplied = true;
+});
+
+// Release button
+document.getElementById('lab-btn-release').addEventListener('click', () => {
+  state.labPressure = 0;
+  state.pressure = 0;
+  document.getElementById('lab-pressure-slider').value = 0;
+  document.getElementById('lab-pressure-val').textContent = '0%';
+  document.getElementById('lab-pressure-bar').style.width = '0%';
+  if (state.labPressureWasApplied) triggerReleaseCheck();
+});
+
+// Stress test: ramp 0→40→80→100→0 over 4 seconds
+document.getElementById('lab-btn-stress-test').addEventListener('click', () => {
+  const steps = [{t:0,p:0},{t:500,p:40},{t:1200,p:80},{t:2200,p:100},{t:3200,p:0}];
+  state.labPressureWasApplied = true;
+  steps.forEach(step => setTimeout(() => {
+    state.labPressure = step.p;
+    state.pressure = step.p;
+    document.getElementById('lab-pressure-slider').value = step.p;
+    document.getElementById('lab-pressure-val').textContent = step.p + '%';
+    document.getElementById('lab-pressure-bar').style.width = step.p + '%';
+    if (step.p === 0) triggerReleaseCheck();
+  }, step.t));
+});
+
+// Sustained: cycles of 45% pressure
+let sustainTimer = null;
+document.getElementById('lab-btn-sustained').addEventListener('click', () => {
+  if (sustainTimer) {
+    clearInterval(sustainTimer);
+    sustainTimer = null;
+    document.getElementById('lab-btn-sustained').textContent = 'Sustain';
+    return;
+  }
+  document.getElementById('lab-btn-sustained').textContent = 'Stop';
+  let phase = 0;
+  state.labPressureWasApplied = true;
+  sustainTimer = setInterval(() => {
+    phase = (phase + 1) % 2;
+    const p = phase === 0 ? 45 : 0;
+    state.labPressure = p;
+    state.pressure = p;
+    document.getElementById('lab-pressure-slider').value = p;
+    document.getElementById('lab-pressure-val').textContent = p + '%';
+    document.getElementById('lab-pressure-bar').style.width = p + '%';
+    if (p === 0) {
+      triggerReleaseCheck();
+      // Degrade RC slightly on each cycle
+      state.labRC = Math.max(0, state.labRC * 0.88);
+      updateLabHealth();
+    }
+  }, 3000);
+});
+
+// ═══════════════════════════════════════════════
+// BUILD PANEL UI WIRING
 // ═══════════════════════════════════════════════
 
 // Tabs
 document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    switchTab(tab.dataset.tab);
-  });
+  tab.addEventListener('click',()=>{ switchTab(tab.dataset.tab); });
 });
 
 // Presets
@@ -2062,7 +2502,7 @@ document.getElementById('sl-aspect').addEventListener('input',e=>{state.aspect=p
 document.getElementById('sl-pretension').addEventListener('input',e=>{
   state.globalPretension=parseInt(e.target.value)/100;
   document.getElementById('val-pretension').textContent=(state.globalPretension*100).toFixed(0)+'%';
-  state.simSprings.filter(s=>s.type==='cable'&&!s.slack).forEach(s=>s.stiffness=600*state.globalPretension*(state.topology.cables[s.memberIdx]?.tensionPct||100)/100);
+  state.simSprings.filter(s=>s.type==='cable'&&!s.slack).forEach(s=>s.stiffness=600*state.globalPretension*(state.topology.cables[s.memberIdx]?state.topology.cables[s.memberIdx].tensionPct||100:100)/100);
   updateAnalysis();
 });
 document.getElementById('sl-compression').addEventListener('input',e=>{
@@ -2084,22 +2524,17 @@ document.getElementById('tog-schematic').addEventListener('change',e=>{
   document.getElementById('schematic-hint').style.display = e.target.checked ? 'block' : 'none';
   rebuildMeshes();
 });
-
 document.getElementById('tog-pairings').addEventListener('change',e=>{
   state.showPairings=e.target.checked;
-  if(!state.showPairings){
-    document.getElementById('pair-svg').innerHTML='';
-  }
+  if(!state.showPairings){ document.getElementById('pair-svg').innerHTML=''; }
 });
 
-// Pressure slider
+// Build mode pressure slider
 document.getElementById('sl-pressure').addEventListener('input',e=>{
   state.pressure=parseInt(e.target.value);
   document.getElementById('val-pressure').textContent=state.pressure;
-  // Update pressure bar
   const cover = document.getElementById('pressure-bar-cover');
   cover.style.width = (100-state.pressure)+'%';
-  // Clear restore indicator while adjusting
   const ind = document.getElementById('restore-indicator');
   ind.style.display='none';
   state.pressureReleased=false;
@@ -2119,17 +2554,10 @@ document.getElementById('btn-release-pressure').addEventListener('click',()=>{
 });
 
 document.getElementById('btn-stress-test').addEventListener('click',()=>{
-  // Ramp: 0→40→80→100→0 over 3.5 seconds
   const ind = document.getElementById('restore-indicator');
   ind.style.display='none';
   state.pressureReleased=false;
-  const steps=[
-    {t:0, p:0},
-    {t:700, p:40},
-    {t:1400, p:80},
-    {t:2100, p:100},
-    {t:3500, p:0}
-  ];
+  const steps=[{t:0,p:0},{t:700,p:40},{t:1400,p:80},{t:2100,p:100},{t:3500,p:0}];
   steps.forEach(step=>{
     setTimeout(()=>{
       state.pressure=step.p;
@@ -2178,7 +2606,7 @@ function showImportStatus(ok,msg){
 // Export + Reset
 document.getElementById('btn-export').addEventListener('click',exportTopology);
 
-// Fit to view button
+// Fit to view
 document.getElementById('btn-fit').addEventListener('click',()=>{
   if(!state.topology) return;
   const allPos=state.topology.nodes.map(n=>n.pos);
@@ -2186,6 +2614,7 @@ document.getElementById('btn-fit').addEventListener('click',()=>{
   const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs),0.5);
   fitToView(span);
 });
+
 document.getElementById('btn-reset-labels').addEventListener('click',()=>{
   const topo=state.topology; if(!topo)return;
   topo.struts.forEach((s,i)=>s.label=`Strut ${i+1}`);
@@ -2196,22 +2625,29 @@ document.getElementById('btn-reset-labels').addEventListener('click',()=>{
 // ═══════════════════════════════════════════════
 // ANIMATION LOOP
 // ═══════════════════════════════════════════════
-let frame=0;
+let frame = 0;
 function animate(){
   requestAnimationFrame(animate);
-  if(state.animate&&state.simNodes.length>0){ physicsStep(0.016); updateMeshPositions(); }
+  if(state.animate && state.simNodes.length > 0){
+    physicsStep(0.016);
+    updateMeshPositions();
+  }
   if(state.schematic) updateSchematicPositions();
   if(state.showPairings) updatePairSVG();
-  checkRestoreResponse();
+  // Build mode restoration check
+  if(state.mode === 'build') checkRestoreResponse();
   updateLabelScales();
-  if(++frame%45===0){ updateAnalysis(); }
-  renderer.render(scene,camera);
+  if(++frame % 30 === 0){
+    if(state.mode === 'lab') updateLabHealth();
+    else updateAnalysis();
+  }
+  renderer.render(scene, camera);
 }
 
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-buildScene();
+loadLabType(1);
 refreshPairingsTab();
 animate();
 </script>
