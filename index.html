@@ -328,6 +328,10 @@
         <label class="toggle-switch"><input type="checkbox" id="tog-dominance" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
       <div class="toggle-row"><span class="slider-label">Show pairings</span>
         <label class="toggle-switch"><input type="checkbox" id="tog-pairings" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--panel-border)">
+        <span class="slider-label" style="color:var(--accent3)">Schematic mode</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-schematic" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div id="schematic-hint" style="display:none;font-size:9px;color:var(--text-muted);line-height:1.6;margin-top:4px">Struts prominent · cables as group bundles · individual lines hidden</div>
     </div>
 
     <div class="section">
@@ -620,7 +624,7 @@ const state = {
   preset:'prism3', twist:150, aspect:1.4, scale:1.0,
   globalPretension:1.0, globalCompression:1.0, damping:0.03,
   showNodes:true, showLabels:true, colorTension:true, animate:true, showDominance:true,
-  showPairings:false,
+  showPairings:false, schematic:false,
   topology: null,
   simNodes: [],
   simSprings: [],
@@ -1009,48 +1013,186 @@ function loadCustomTopology(json){
   }
 }
 
+// ═══════════════════════════════════════════════
+// SCHEMATIC MODE — group-aware, strut-dominant rendering
+// ═══════════════════════════════════════════════
+
+// Palette matching PAIR_COLORS but softer for fill
+const GROUP_COLORS = {
+  'generative-1': '#7b6ef6',
+  'generative-2': '#3ecfcf',
+  'lateral':      '#f06060',
+  'default-0':    '#7b6ef6',
+  'default-1':    '#3ecfcf',
+  'default-2':    '#f0c060',
+  'default-3':    '#60f090',
+  'default-4':    '#f060c0',
+  'default-5':    '#60a0f0',
+};
+let schematicGroupMeshes = [];
+
+function groupColorFor(groupName, idx) {
+  if (GROUP_COLORS[groupName]) return GROUP_COLORS[groupName];
+  return GROUP_COLORS['default-' + (idx % 6)];
+}
+
+function buildSchematicGroups(topo, ns) {
+  // Remove old group meshes
+  schematicGroupMeshes.forEach(o=>{
+    scene.remove(o);
+    if(o.geometry) o.geometry.dispose();
+    if(o.material) { if(Array.isArray(o.material)) o.material.forEach(m=>m.dispose()); else o.material.dispose(); }
+  });
+  schematicGroupMeshes = [];
+
+  // Collect cable groups
+  const groups = {};
+  topo.cables.forEach(c=>{
+    if(c.slack) return; // skip slack cables entirely in schematic
+    const gname = c.group || '__ungrouped';
+    if(!groups[gname]) groups[gname] = [];
+    groups[gname].push(c);
+  });
+
+  const groupNames = Object.keys(groups);
+
+  groupNames.forEach((gname, gi) => {
+    const cables = groups[gname];
+    const col = new THREE.Color(groupColorFor(gname, gi));
+
+    // For each cable in the group, draw a fat translucent tube (schematic bundle)
+    cables.forEach(c=>{
+      const [a,b] = c.nodes;
+      if(a>=ns.length||b>=ns.length) return;
+
+      const health = (c.tensionPct||0) / 100;
+      const radius = 0.025 + health * 0.055; // thicker = more tension
+      const opacity = 0.18 + health * 0.55;
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: col, transparent: true, opacity, side: THREE.DoubleSide
+      });
+      const mesh = cylBetween(ns[a].pos, ns[b].pos, radius, mat);
+      if(mesh) {
+        mesh.userData = { type:'cable', idx: topo.cables.indexOf(c), schematic:true };
+        scene.add(mesh);
+        schematicGroupMeshes.push(mesh);
+      }
+    });
+
+    // Draw a group label at the centroid of the group's cable midpoints
+    const cx = cables.reduce((s,c)=>{
+      const [a,b]=c.nodes;
+      return s + (ns[a]?.pos[0]||0)/2 + (ns[b]?.pos[0]||0)/2;
+    },0) / cables.length;
+    const cy = cables.reduce((s,c)=>{
+      const [a,b]=c.nodes;
+      return s + (ns[a]?.pos[1]||0)/2 + (ns[b]?.pos[1]||0)/2;
+    },0) / cables.length;
+    const cz = cables.reduce((s,c)=>{
+      const [a,b]=c.nodes;
+      return s + (ns[a]?.pos[2]||0)/2 + (ns[b]?.pos[2]||0)/2;
+    },0) / cables.length;
+
+    const labelText = gname === '__ungrouped' ? 'Ungrouped' : gname;
+    const sp = makeLabel(labelText, [cx, cy+0.3, cz], '#'+col.getHexString(), 0.55);
+    scene.add(sp);
+    schematicGroupMeshes.push(sp);
+  });
+}
+
+function updateSchematicPositions() {
+  const topo = state.topology;
+  const ns = state.simNodes;
+  if(!topo || !ns.length) return;
+
+  // Rebuild is cheap enough for schematic mode (group tubes need position updates)
+  // Instead of updating each mesh, just rebuild at lower frequency
+  // (handled by rebuildMeshes being called when schematic toggled)
+  // Per-frame: update the tube transforms directly
+  let idx = 0;
+  const groups = {};
+  topo.cables.forEach(c=>{
+    if(c.slack) return;
+    const gname = c.group||'__ungrouped';
+    if(!groups[gname]) groups[gname] = [];
+    groups[gname].push(c);
+  });
+
+  Object.values(groups).forEach(cables=>{
+    cables.forEach(c=>{
+      if(idx >= schematicGroupMeshes.length) return;
+      const mesh = schematicGroupMeshes[idx];
+      if(!mesh || mesh.isSprite) { idx++; return; }
+      const [a,b] = c.nodes;
+      if(a>=ns.length||b>=ns.length){ idx++; return; }
+      const vA = new THREE.Vector3(...ns[a].pos);
+      const vB = new THREE.Vector3(...ns[b].pos);
+      const dir = new THREE.Vector3().subVectors(vB,vA);
+      const len = dir.length();
+      if(len<1e-8){ idx++; return; }
+      mesh.position.copy(new THREE.Vector3().addVectors(vA,vB).multiplyScalar(0.5));
+      mesh.scale.y = len/(mesh.geometry.parameters.height||1);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
+      idx++;
+    });
+    idx++; // skip label sprite
+  });
+}
+
 function rebuildMeshes(){
   disposeAll();
   const topo=state.topology;
   const ns=state.simNodes;
 
-  // Struts
+  // Struts — thicker and more prominent in schematic mode
+  const strutRadius = state.schematic ? 0.1 : 0.05;
   topo.struts.forEach((s,i)=>{
     const [a,b]=s.nodes;
     if(a>=ns.length||b>=ns.length)return;
     const pct=s.tensionPct||100;
     let baseCol=tColor(pct,'strut');
-    // Pairing tint
     const pairCol=getMemberPairingColor('strut',i);
     if(pairCol){
       const base=new THREE.Color(baseCol);
       const pair=new THREE.Color(pairCol);
-      base.lerp(pair,0.3);
+      base.lerp(pair,state.schematic?0.5:0.3);
       baseCol='#'+base.getHexString();
     }
-    const mat=new THREE.MeshPhongMaterial({color:new THREE.Color(baseCol),shininess:80,specular:new THREE.Color(0.4,0.4,0.5)});
-    const m=cylBetween(ns[a].pos,ns[b].pos,0.05,mat);
+    const emissiveCol = state.schematic ? new THREE.Color(baseCol).multiplyScalar(0.3) : new THREE.Color(0,0,0);
+    const mat=new THREE.MeshPhongMaterial({
+      color:new THREE.Color(baseCol),
+      shininess: state.schematic ? 120 : 80,
+      specular:new THREE.Color(0.5,0.5,0.6),
+      emissive: emissiveCol,
+    });
+    const m=cylBetween(ns[a].pos,ns[b].pos,strutRadius,mat);
     if(m){m.userData={type:'strut',idx:i};scene.add(m);strutMeshes.push(m);}
   });
 
-  // Cables
-  topo.cables.forEach((c,i)=>{
-    const [a,b]=c.nodes;
-    if(a>=ns.length||b>=ns.length)return;
-    let baseCol=tColor(c.tensionPct,'cable',c.slack);
-    const pairCol=getMemberPairingColor('cable',i);
-    if(pairCol){
-      const base=new THREE.Color(baseCol);
-      const pair=new THREE.Color(pairCol);
-      base.lerp(pair,0.3);
-      baseCol='#'+base.getHexString();
-    }
-    const mat=new THREE.LineBasicMaterial({color:new THREE.Color(baseCol),linewidth:c.slack?0.5:1.5});
-    const pts=[new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)];
-    const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
-    line.userData={type:'cable',idx:i};
-    scene.add(line); cableMeshes.push(line);
-  });
+  // Cables — hidden entirely in schematic mode (replaced by group bundles)
+  if(!state.schematic){
+    topo.cables.forEach((c,i)=>{
+      const [a,b]=c.nodes;
+      if(a>=ns.length||b>=ns.length)return;
+      let baseCol=tColor(c.tensionPct,'cable',c.slack);
+      const pairCol=getMemberPairingColor('cable',i);
+      if(pairCol){
+        const base=new THREE.Color(baseCol);
+        const pair=new THREE.Color(pairCol);
+        base.lerp(pair,0.3);
+        baseCol='#'+base.getHexString();
+      }
+      const mat=new THREE.LineBasicMaterial({color:new THREE.Color(baseCol),linewidth:c.slack?0.5:1.5});
+      const pts=[new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)];
+      const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
+      line.userData={type:'cable',idx:i};
+      scene.add(line); cableMeshes.push(line);
+    });
+  }
+
+  // Schematic group bundles
+  if(state.schematic) buildSchematicGroups(topo, ns);
 
   // Nodes
   if(state.showNodes){
@@ -1849,13 +1991,13 @@ const ACROSS_JSON=`{
   "pocVersion": "0.3",
   "topology": {
     "nodes": [
-      {"id":0,"label":"Hub (Dominant Node)","pos":[0.0,0.0,0.0],"role":"convergence"},
+      {"id":0,"label":"Risk Labs / Lambur Cluster","pos":[0.0,0.0,0.0],"role":"convergence"},
       {"id":1,"label":"Accountability","pos":[-1.8,0.6,0.8],"role":"outer"},
       {"id":2,"label":"Transparency","pos":[1.8,0.6,0.8],"role":"outer"},
       {"id":3,"label":"Participation","pos":[0.0,0.6,-1.8],"role":"outer"},
       {"id":4,"label":"Equity","pos":[-1.1,-1.2,-0.6],"role":"outer"},
       {"id":5,"label":"Legitimacy","pos":[1.1,-1.2,-0.6],"role":"outer"},
-      {"id":6,"label":"Four Batteries (Isolated)","pos":[3.2,1.8,-1.2],"role":"isolated"}
+      {"id":6,"label":"Four Batteries (Isolated)","pos":[2.4,1.4,-0.8],"role":"isolated"}
     ],
     "struts": [
       {"id":0,"nodes":[0,1],"label":"Accountability Standard","score":2,"restLengthScale":1.0},
@@ -1865,16 +2007,11 @@ const ACROSS_JSON=`{
       {"id":4,"nodes":[5,6],"label":"Four Batteries Expression Battery","score":3,"restLengthScale":1.4}
     ],
     "cables": [
-      {"id":0,"nodes":[0,1],"label":"Generative-1a · Hub→Accountability","group":"generative-1","tensionPct":85,"slack":false},
-      {"id":1,"nodes":[0,2],"label":"Generative-1b · Hub→Transparency","group":"generative-1","tensionPct":82,"slack":false},
-      {"id":2,"nodes":[0,3],"label":"Generative-1c · Hub→Participation","group":"generative-1","tensionPct":78,"slack":false},
-      {"id":3,"nodes":[0,4],"label":"Generative-2a · Hub→Equity","group":"generative-2","tensionPct":72,"slack":false},
-      {"id":4,"nodes":[0,5],"label":"Generative-2b · Hub→Legitimacy","group":"generative-2","tensionPct":68,"slack":false},
-      {"id":5,"nodes":[1,2],"label":"Lateral · Accountability↔Transparency","group":"lateral","tensionPct":12,"slack":true},
-      {"id":6,"nodes":[2,3],"label":"Lateral · Transparency↔Participation","group":"lateral","tensionPct":8,"slack":true},
-      {"id":7,"nodes":[3,4],"label":"Lateral · Participation↔Equity","group":"lateral","tensionPct":5,"slack":true},
-      {"id":8,"nodes":[4,5],"label":"Lateral · Equity↔Legitimacy","group":"lateral","tensionPct":10,"slack":true},
-      {"id":9,"nodes":[1,4],"label":"Lateral · Accountability↔Equity","group":"lateral","tensionPct":6,"slack":true}
+      {"id":0,"nodes":[0,1],"label":"","group":"generative-1","tensionPct":85,"slack":false},
+      {"id":1,"nodes":[0,2],"label":"","group":"generative-1","tensionPct":82,"slack":false},
+      {"id":2,"nodes":[0,3],"label":"","group":"generative-1","tensionPct":78,"slack":false},
+      {"id":3,"nodes":[0,4],"label":"","group":"generative-2","tensionPct":72,"slack":false},
+      {"id":4,"nodes":[0,5],"label":"","group":"generative-2","tensionPct":68,"slack":false}
     ],
     "pairings": []
   }
@@ -1931,6 +2068,12 @@ document.getElementById('tog-labels').addEventListener('change',e=>{state.showLa
 document.getElementById('tog-tension-color').addEventListener('change',e=>{state.colorTension=e.target.checked;});
 document.getElementById('tog-animate').addEventListener('change',e=>{state.animate=e.target.checked;});
 document.getElementById('tog-dominance').addEventListener('change',e=>{state.showDominance=e.target.checked;rebuildMeshes();});
+document.getElementById('tog-schematic').addEventListener('change',e=>{
+  state.schematic = e.target.checked;
+  document.getElementById('schematic-hint').style.display = e.target.checked ? 'block' : 'none';
+  rebuildMeshes();
+});
+
 document.getElementById('tog-pairings').addEventListener('change',e=>{
   state.showPairings=e.target.checked;
   if(!state.showPairings){
@@ -2046,6 +2189,7 @@ let frame=0;
 function animate(){
   requestAnimationFrame(animate);
   if(state.animate&&state.simNodes.length>0){ physicsStep(0.016); updateMeshPositions(); }
+  if(state.schematic) updateSchematicPositions();
   if(state.showPairings) updatePairSVG();
   checkRestoreResponse();
   updateLabelScales();
