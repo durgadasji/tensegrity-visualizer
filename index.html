@@ -492,6 +492,7 @@ pairings: [{id, label, color,
     <div class="config-name" id="overlay-config">3-Strut Prism · Simplex</div>
   </div>
   <div id="hint-bar">Click to select · Shift-click to pair · Drag to rotate · Scroll to zoom</div>
+  <button id="btn-fit" title="Fit to view" style="position:absolute;top:14px;right:14px;background:rgba(19,22,30,0.85);border:1px solid #1f2535;border-radius:5px;color:#6b7494;font-size:11px;padding:4px 9px;cursor:pointer;z-index:5;transition:all .15s" onmouseover="this.style.color='#7b6ef6';this.style.borderColor='#7b6ef6'" onmouseout="this.style.color='#6b7494';this.style.borderColor='#1f2535'">⊡ Fit</button>
   <div id="selected-info">
     <div class="sel-type" id="sel-type">—</div>
     <div class="sel-name" id="sel-name">—</div>
@@ -661,7 +662,15 @@ function resizeRenderer(){
 window.addEventListener('resize',resizeRenderer); resizeRenderer();
 
 // Orbit
-const orbit={isDragging:false,lastX:0,lastY:0,theta:0.5,phi:0.8,radius:6};
+const orbit={isDragging:false,lastX:0,lastY:0,theta:0.5,phi:0.8,radius:6,minRadius:0.5,maxRadius:80};
+function fitToView(span) {
+  // Set camera distance and zoom bounds based on structure span
+  const ideal = span * 1.8 + 2;
+  orbit.radius = ideal;
+  orbit.minRadius = Math.max(0.3, span * 0.15);
+  orbit.maxRadius = span * 8 + 20;
+  updateCamera();
+}
 function updateCamera(){
   camera.position.x=orbit.radius*Math.sin(orbit.phi)*Math.sin(orbit.theta);
   camera.position.y=orbit.radius*Math.cos(orbit.phi);
@@ -677,7 +686,11 @@ window.addEventListener('mousemove',e=>{
   orbit.lastX=e.clientX; orbit.lastY=e.clientY; updateCamera();
 });
 window.addEventListener('mouseup',()=>orbit.isDragging=false);
-canvas.addEventListener('wheel',e=>{orbit.radius=Math.max(1.5,Math.min(25,orbit.radius+e.deltaY*0.012));updateCamera();},{passive:true});
+canvas.addEventListener('wheel',e=>{
+  const delta = e.deltaY * 0.012;
+  orbit.radius = Math.max(orbit.minRadius, Math.min(orbit.maxRadius, orbit.radius + delta));
+  updateCamera();
+},{passive:true});
 canvas.addEventListener('touchstart',e=>{if(e.touches.length===1){orbit.isDragging=true;orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;}});
 canvas.addEventListener('touchmove',e=>{if(!orbit.isDragging||e.touches.length!==1)return;orbit.theta-=(e.touches[0].clientX-orbit.lastX)*0.008;orbit.phi=Math.max(0.1,Math.min(Math.PI-0.1,orbit.phi+(e.touches[0].clientY-orbit.lastY)*0.008));orbit.lastX=e.touches[0].clientX;orbit.lastY=e.touches[0].clientY;updateCamera();});
 canvas.addEventListener('touchend',()=>orbit.isDragging=false);
@@ -708,18 +721,38 @@ function cylBetween(pA,pB,radius,mat){
 }
 
 function makeLabel(text,pos,color='#d0d6e8',scale=0.6){
-  const cvs=document.createElement('canvas'); cvs.width=256; cvs.height=64;
+  const cvs=document.createElement('canvas'); cvs.width=512; cvs.height=128;
   const ctx=cvs.getContext('2d');
-  ctx.fillStyle='rgba(13,15,20,0.75)';
-  if(ctx.roundRect) ctx.roundRect(2,6,252,52,8); else ctx.rect(2,6,252,52);
+  ctx.fillStyle='rgba(13,15,20,0.82)';
+  if(ctx.roundRect) ctx.roundRect(4,10,504,108,14); else ctx.rect(4,10,504,108);
   ctx.fill();
-  ctx.fillStyle=color; ctx.font='bold 18px Inter,sans-serif';
+  ctx.fillStyle=color; ctx.font='bold 36px Inter,sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(text.length>22?text.slice(0,21)+'…':text,128,32);
+  // Truncate long labels gracefully
+  let label=text;
+  if(ctx.measureText(label).width>460){
+    while(label.length>3 && ctx.measureText(label+'…').width>460) label=label.slice(0,-1);
+    label+='…';
+  }
+  ctx.fillText(label,256,64);
   const tex=new THREE.CanvasTexture(cvs);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
-  sp.position.set(...pos); sp.scale.set(scale*1.2,scale*0.3,1);
+  sp.position.set(...pos);
+  // Store the base scale — updateLabelScales() will adjust per camera distance
+  sp.userData.baseScale = scale;
+  sp.scale.set(scale*1.4,scale*0.35,1);
   return sp;
+}
+
+function updateLabelScales(){
+  if(!labelSprites.length) return;
+  // Scale labels so they stay readable at any zoom distance
+  const distFactor = Math.max(0.3, orbit.radius / 6);
+  labelSprites.forEach(sp=>{
+    const b = sp.userData.baseScale || 0.6;
+    const s = b * distFactor;
+    sp.scale.set(s*1.4, s*0.35, 1);
+  });
 }
 
 // ═══════════════════════════════════════════════
@@ -903,6 +936,11 @@ function buildScene(){
   refreshMembersTab();
   updateAnalysis();
   updateOverlay();
+  // Auto-fit zoom bounds to the preset geometry
+  const allPos = geo.nodes.map(n=>n.pos);
+  const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
+  const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs),0.5);
+  fitToView(span);
 }
 
 function loadCustomTopology(json){
@@ -962,9 +1000,8 @@ function loadCustomTopology(json){
 
     const allPos=customTopo.nodes.map(n=>n.pos);
     const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
-    const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs));
-    orbit.radius=span*1.8+3;
-    updateCamera();
+    const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs),0.5);
+    fitToView(span);
 
     return {ok:true, msg:`Loaded: ${customTopo.nodes.length} nodes, ${sts.length} struts, ${cbs.length} cables`};
   } catch(e){
@@ -1986,6 +2023,15 @@ function showImportStatus(ok,msg){
 
 // Export + Reset
 document.getElementById('btn-export').addEventListener('click',exportTopology);
+
+// Fit to view button
+document.getElementById('btn-fit').addEventListener('click',()=>{
+  if(!state.topology) return;
+  const allPos=state.topology.nodes.map(n=>n.pos);
+  const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
+  const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs),0.5);
+  fitToView(span);
+});
 document.getElementById('btn-reset-labels').addEventListener('click',()=>{
   const topo=state.topology; if(!topo)return;
   topo.struts.forEach((s,i)=>s.label=`Strut ${i+1}`);
@@ -2002,6 +2048,7 @@ function animate(){
   if(state.animate&&state.simNodes.length>0){ physicsStep(0.016); updateMeshPositions(); }
   if(state.showPairings) updatePairSVG();
   checkRestoreResponse();
+  updateLabelScales();
   if(++frame%45===0){ updateAnalysis(); }
   renderer.render(scene,camera);
 }
