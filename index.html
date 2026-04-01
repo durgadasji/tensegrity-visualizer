@@ -1131,18 +1131,40 @@ function physicsStep(dt){
     if(!nb.pinned){nb.force[0]-=fx;nb.force[1]-=fy;nb.force[2]-=fz;}
   });
   applyPressureForces();
-  let cx=0,cy=0,cz=0;
-  ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
-  cx/=ns.length; cy/=ns.length; cz/=ns.length;
+
+  // Integrate velocities and positions
   ns.forEach(n=>{
     if(n.pinned)return;
     n.vel[0]=(n.vel[0]+n.force[0]*dt/n.mass)*(1-damp);
     n.vel[1]=(n.vel[1]+n.force[1]*dt/n.mass)*(1-damp);
     n.vel[2]=(n.vel[2]+n.force[2]*dt/n.mass)*(1-damp);
-    n.pos[0]+=n.vel[0]*dt-cx;
-    n.pos[1]+=n.vel[1]*dt-cy;
-    n.pos[2]+=n.vel[2]*dt-cz;
+    n.pos[0]+=n.vel[0]*dt;
+    n.pos[1]+=n.vel[1]*dt;
+    n.pos[2]+=n.vel[2]*dt;
   });
+
+  // Center-of-mass correction: only prevent lateral drift, never cancel pressure-induced deformation.
+  // When pressure > 0 the structure is MEANT to shrink — only correct if the net CM velocity
+  // is large (structure drifting off screen), not simply compressing.
+  const activePressure = state.pressure > 0;
+  if (!activePressure) {
+    // No pressure: fully correct CM drift to keep structure centered
+    let cx=0,cy=0,cz=0;
+    ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
+    cx/=ns.length; cy/=ns.length; cz/=ns.length;
+    ns.forEach(n=>{n.pos[0]-=cx; n.pos[1]-=cy; n.pos[2]-=cz;});
+  } else {
+    // Under pressure: only correct if CM has drifted far from origin (prevents fly-off)
+    let cx=0,cy=0,cz=0;
+    ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
+    cx/=ns.length; cy/=ns.length; cz/=ns.length;
+    const drift = Math.sqrt(cx*cx+cy*cy+cz*cz);
+    if (drift > 0.5) {
+      // Soft-correct: only pull back 10% of drift per frame so compression still shows
+      const k = 0.1;
+      ns.forEach(n=>{n.pos[0]-=cx*k; n.pos[1]-=cy*k; n.pos[2]-=cz*k;});
+    }
+  }
   const topo=state.topology;
   sp.forEach(s=>{
     if(s.type==='strut') topo.struts[s.memberIdx].currentForce=s.currentForce;
