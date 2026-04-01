@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tensegrity Visualizer v0.2 — PoC Protocol</title>
+  <title>Tensegrity Visualizer v0.3 — PoC Protocol</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -30,8 +30,9 @@
       overflow-y:auto; overflow-x:hidden; background:var(--panel-bg);
       border-right:1px solid var(--panel-border); display:flex; flex-direction:column;
       z-index:10; scrollbar-width:thin; scrollbar-color:var(--panel-border) transparent; }
-    #viewport { flex:1; position:relative; }
+    #viewport { flex:1; position:relative; overflow:hidden; }
     canvas { display:block; width:100%!important; height:100%!important; }
+    #pair-svg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:5; }
 
     /* ── SIDEBAR COMPONENTS ── */
     .sidebar-header { padding:14px 16px 10px; border-bottom:1px solid var(--panel-border);
@@ -41,7 +42,7 @@
     .sidebar-header p { font-size:10px; color:var(--text-muted); margin-top:2px; }
 
     .tabs { display:flex; border-bottom:1px solid var(--panel-border); }
-    .tab { flex:1; text-align:center; font-size:11px; padding:8px 4px; cursor:pointer;
+    .tab { flex:1; text-align:center; font-size:10px; padding:8px 2px; cursor:pointer;
       color:var(--text-muted); border-bottom:2px solid transparent; transition:all .15s; }
     .tab:hover { color:var(--text); }
     .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
@@ -142,16 +143,16 @@
     .btn-row { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
 
     /* ── VIEWPORT OVERLAYS ── */
-    #viewport-label { position:absolute; top:14px; left:14px; pointer-events:none; line-height:1.8; }
+    #viewport-label { position:absolute; top:14px; left:14px; pointer-events:none; line-height:1.8; z-index:6; }
     #viewport-label .org-name { font-size:15px; font-weight:600; color:var(--text); }
     #viewport-label .config-name { font-size:11px; color:var(--accent); }
     #hint-bar { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
       font-size:10px; color:var(--text-muted); pointer-events:none;
       background:color-mix(in srgb,var(--bg) 80%,transparent);
-      padding:4px 10px; border-radius:20px; border:1px solid var(--panel-border); }
+      padding:4px 10px; border-radius:20px; border:1px solid var(--panel-border); z-index:6; }
     #selected-info { position:absolute; bottom:46px; right:14px; background:var(--panel-bg);
       border:1px solid var(--panel-border); border-radius:7px; padding:9px 11px;
-      font-size:11px; min-width:180px; display:none; }
+      font-size:11px; min-width:180px; display:none; z-index:6; }
     #selected-info .sel-type { font-size:9px; text-transform:uppercase;
       letter-spacing:.1em; color:var(--text-muted); margin-bottom:3px; }
     #selected-info .sel-name { font-size:12px; font-weight:600; color:var(--text); margin-bottom:5px; }
@@ -165,6 +166,15 @@
     .import-status.err { background:color-mix(in srgb,#f06060 15%,transparent);
       color:#f06060; border:1px solid #f06060; }
 
+    /* ── DROP ZONE ── */
+    .drop-zone { border:2px dashed var(--panel-border); border-radius:8px;
+      padding:18px 12px; text-align:center; cursor:pointer; transition:all .2s;
+      margin-bottom:10px; color:var(--text-muted); font-size:11px; line-height:1.7; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color:var(--accent);
+      background:color-mix(in srgb,var(--accent) 8%,transparent); color:var(--text); }
+    .drop-zone .dz-icon { font-size:22px; display:block; margin-bottom:4px; }
+    .drop-zone strong { color:var(--text); }
+
     /* ── NODE DOMINANCE INDICATOR ── */
     .node-item { display:flex; align-items:center; gap:6px; padding:4px 7px;
       border-radius:4px; background:var(--bg); margin-bottom:3px; font-size:10px; }
@@ -172,6 +182,63 @@
     .node-badge.dominant { background:color-mix(in srgb,#f06060 20%,transparent); color:#f06060; }
     .node-badge.isolated { background:color-mix(in srgb,var(--accent3) 20%,transparent); color:var(--accent3); }
     .node-badge.normal   { background:color-mix(in srgb,var(--accent2) 20%,transparent); color:var(--accent2); }
+
+    /* ── PAIRING MODAL ── */
+    #pair-modal { display:none; position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%); background:#13161e;
+      border:1px solid #1f2535; border-radius:10px; padding:20px;
+      min-width:320px; z-index:100; }
+    .pair-modal-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px;
+      display:flex; align-items:center; gap:8px; }
+    .pair-count-badge { background:var(--accent); color:#fff; font-size:9px;
+      border-radius:10px; padding:1px 7px; font-weight:700; }
+    .pair-member-list { max-height:140px; overflow-y:auto; margin:10px 0;
+      display:flex; flex-direction:column; gap:4px; scrollbar-width:thin; }
+    .pair-member-row { display:flex; align-items:center; gap:6px; background:var(--bg);
+      border-radius:5px; padding:5px 8px; font-size:11px; }
+    .pair-type-badge { font-size:9px; padding:1px 6px; border-radius:3px; font-weight:600; }
+    .pair-type-badge.strut { background:color-mix(in srgb,#e0e0f8 20%,transparent); color:#e0e0f8; }
+    .pair-type-badge.cable { background:color-mix(in srgb,#3ecfcf 20%,transparent); color:#3ecfcf; }
+    .pair-member-label { flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pair-remove-btn { background:none; border:none; color:var(--text-muted); cursor:pointer;
+      font-size:14px; padding:0 2px; line-height:1; }
+    .pair-remove-btn:hover { color:#f06060; }
+    .pair-hint { font-size:10px; color:var(--text-muted); font-style:italic; margin-bottom:10px; }
+    .pair-label-input { width:100%; background:var(--bg); border:1px solid var(--panel-border);
+      border-radius:5px; color:var(--text); font-size:12px; padding:6px 9px;
+      outline:none; margin-bottom:10px; }
+    .pair-label-input:focus { border-color:var(--accent); }
+    .color-swatch-row { display:flex; gap:5px; margin-bottom:12px; }
+    .color-swatch { width:20px; height:20px; border-radius:4px; cursor:pointer;
+      border:2px solid transparent; transition:all .15s; }
+    .color-swatch.selected { border-color:white; transform:scale(1.2); }
+    .pair-modal-btns { display:flex; gap:6px; justify-content:flex-end; }
+
+    /* ── PAIRINGS TAB ── */
+    .pairing-row { display:flex; align-items:center; gap:8px; background:var(--bg);
+      border-radius:5px; padding:7px 10px; margin-bottom:5px; cursor:pointer;
+      border:1px solid transparent; transition:all .15s; }
+    .pairing-row:hover { border-color:var(--panel-border); }
+    .pairing-row.active { border-color:var(--accent); }
+    .pairing-swatch { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .pairing-label { flex:1; font-size:11px; color:var(--text); }
+    .pairing-count { font-size:10px; color:var(--text-muted); }
+    .pairing-del { background:none; border:none; color:var(--text-muted); cursor:pointer;
+      font-size:14px; padding:0 2px; }
+    .pairing-del:hover { color:#f06060; }
+
+    /* ── PRESSURE ── */
+    .pressure-response { background:var(--bg); border:1px solid var(--panel-border);
+      border-radius:6px; padding:8px 10px; margin-top:8px; }
+    .pressure-bar-bg { height:6px; border-radius:3px; overflow:hidden;
+      background:linear-gradient(90deg,#3ecfcf,#f0c060,#f06060); margin:5px 0; position:relative; }
+    .pressure-bar-cover { position:absolute; right:0; top:0; bottom:0; background:var(--bg);
+      transition:width .3s; }
+    .restore-indicator { font-size:10px; padding:4px 7px; border-radius:4px; margin-top:6px; display:none; }
+    .restore-indicator.restored { background:color-mix(in srgb,#3ecfcf 15%,transparent);
+      color:#3ecfcf; border:1px solid #3ecfcf; }
+    .restore-indicator.deformed { background:color-mix(in srgb,#f06060 15%,transparent);
+      color:#f06060; border:1px solid #f06060; }
 
     ::-webkit-scrollbar { width:3px; }
     ::-webkit-scrollbar-thumb { background:var(--panel-border); border-radius:2px; }
@@ -184,7 +251,7 @@
 <div id="sidebar">
   <div class="sidebar-header">
     <h1>Tensegrity Visualizer</h1>
-    <p>Proof of Coordination Protocol — v0.2</p>
+    <p>Proof of Coordination Protocol — v0.3</p>
   </div>
 
   <!-- Org name -->
@@ -192,10 +259,11 @@
     <input class="org-input" id="orgName" type="text" placeholder="Organization name..." value="Octant" />
   </div>
 
-  <!-- Tabs -->
+  <!-- Tabs (5 tabs) -->
   <div class="tabs">
     <div class="tab active" data-tab="structure">Structure</div>
     <div class="tab" data-tab="members">Members</div>
+    <div class="tab" data-tab="pairings">Pairings</div>
     <div class="tab" data-tab="import">Import</div>
     <div class="tab" data-tab="analysis">Analysis</div>
   </div>
@@ -258,6 +326,30 @@
         <label class="toggle-switch"><input type="checkbox" id="tog-animate" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
       <div class="toggle-row"><span class="slider-label">Highlight dominance</span>
         <label class="toggle-switch"><input type="checkbox" id="tog-dominance" checked /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+      <div class="toggle-row"><span class="slider-label">Show pairings</span>
+        <label class="toggle-switch"><input type="checkbox" id="tog-pairings" /><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">External Pressure</div>
+      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+        Applies inward compression to all nodes. Release to observe structural restoration.
+      </p>
+      <div class="slider-row">
+        <div class="slider-header"><span class="slider-label">Pressure</span><span class="slider-value bad" id="val-pressure">0</span></div>
+        <input type="range" id="sl-pressure" min="0" max="100" step="1" value="0" />
+      </div>
+      <div class="pressure-response">
+        <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:4px;">Structural Response</div>
+        <div class="pressure-bar-bg">
+          <div class="pressure-bar-cover" id="pressure-bar-cover" style="width:100%"></div>
+        </div>
+        <div class="restore-indicator" id="restore-indicator"></div>
+      </div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn sm" id="btn-release-pressure">Release Pressure</button>
+        <button class="btn sm primary" id="btn-stress-test">Stress Test</button>
+      </div>
     </div>
   </div>
 
@@ -279,12 +371,35 @@
     </div>
   </div>
 
+  <!-- ── TAB: PAIRINGS ── -->
+  <div class="tab-content" id="tab-pairings">
+    <div class="section">
+      <div class="section-label">Active Pairings</div>
+      <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
+        Shift-click elements in the 3D view to create a pairing.
+      </p>
+      <div id="pairings-list"></div>
+      <div class="btn-row">
+        <button class="btn sm danger" id="btn-clear-pairings">Clear All Pairings</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── TAB: IMPORT ── -->
   <div class="tab-content" id="tab-import">
     <div class="section">
       <div class="section-label">Load Custom Topology</div>
+
+      <!-- Drop zone -->
+      <div class="drop-zone" id="drop-zone">
+        <span class="dz-icon">📂</span>
+        <strong>Drop a JSON file here</strong><br>
+        or click to browse
+      </div>
+      <input type="file" id="file-input" accept=".json" style="display:none" />
+
       <p style="font-size:10px; color:var(--text-muted); line-height:1.6; margin-bottom:8px;">
-        Paste a topology JSON (v0.2 format) to define arbitrary nodes, struts, and cables.
+        Or paste a topology JSON (v0.3 format) to define arbitrary nodes, struts, and cables.
         Per-member tension values in the JSON are applied on import.
       </p>
       <textarea class="json-input" id="json-import" placeholder='{"organization":"...","topology":{"nodes":[...],"struts":[...],"cables":[...]}}'></textarea>
@@ -302,7 +417,9 @@ struts: [{id, nodes:[a,b], label,
           restLengthScale, score}]
 cables: [{id, nodes:[a,b], label,
           tensionPct(0-100), slack,
-          group}]</div>
+          group}]
+pairings: [{id, label, color,
+            members:[{type,id}]}]</div>
     </div>
   </div>
 
@@ -352,11 +469,29 @@ cables: [{id, nodes:[a,b], label,
 <!-- ══════════════ VIEWPORT ══════════════ -->
 <div id="viewport">
   <canvas id="canvas"></canvas>
+  <svg id="pair-svg"></svg>
+
+  <!-- Pairing Modal -->
+  <div id="pair-modal" onmousedown="event.stopPropagation()">
+    <div class="pair-modal-title">
+      Create Pairing
+      <span class="pair-count-badge" id="pair-count-badge">0</span>
+    </div>
+    <div class="pair-member-list" id="pair-member-list"></div>
+    <div class="pair-hint">Shift-click more elements in the 3D view to add them</div>
+    <input class="pair-label-input" id="pair-label-input" type="text" placeholder="Pairing label (describes the relationship)..." />
+    <div class="color-swatch-row" id="color-swatch-row"></div>
+    <div class="pair-modal-btns">
+      <button class="btn sm" id="btn-pair-cancel">Cancel</button>
+      <button class="btn sm primary" id="btn-pair-confirm">Confirm</button>
+    </div>
+  </div>
+
   <div id="viewport-label">
     <div class="org-name" id="overlay-orgname">Octant</div>
     <div class="config-name" id="overlay-config">3-Strut Prism · Simplex</div>
   </div>
-  <div id="hint-bar">Drag to rotate · Scroll to zoom · Click to select · Tab for member controls</div>
+  <div id="hint-bar">Click to select · Shift-click to pair · Drag to rotate · Scroll to zoom</div>
   <div id="selected-info">
     <div class="sel-type" id="sel-type">—</div>
     <div class="sel-name" id="sel-name">—</div>
@@ -369,6 +504,11 @@ cables: [{id, nodes:[a,b], label,
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
+
+// ═══════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════
+const PAIR_COLORS = ['#7b6ef6','#3ecfcf','#f0c060','#f06060','#60f090','#f060c0','#60a0f0','#f0a060'];
 
 // ═══════════════════════════════════════════════
 // GEOMETRY LIBRARY (symmetric presets)
@@ -479,11 +619,21 @@ const state = {
   preset:'prism3', twist:150, aspect:1.4, scale:1.0,
   globalPretension:1.0, globalCompression:1.0, damping:0.03,
   showNodes:true, showLabels:true, colorTension:true, animate:true, showDominance:true,
-  topology: null,       // current { nodes, struts, cables, ... }
-  simNodes: [],         // physics sim nodes
-  simSprings: [],       // physics sim springs
+  showPairings:false,
+  topology: null,
+  simNodes: [],
+  simSprings: [],
   selectedType:null, selectedIdx:null,
   orgName:'Octant',
+  pairings: [],
+  pendingPairMembers: [],
+  pairingPanelOpen: false,
+  activePairingId: null,
+  selectedPairColor: PAIR_COLORS[0],
+  pressure: 0,
+  pressureReleased: false,
+  pressureReleaseTime: 0,
+  _pairIdCounter: 1,
 };
 
 // ═══════════════════════════════════════════════
@@ -504,6 +654,9 @@ function resizeRenderer(){
   const vp=document.getElementById('viewport');
   const w=vp.clientWidth, h=vp.clientHeight;
   renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  // resize SVG
+  const svg=document.getElementById('pair-svg');
+  svg.setAttribute('width',w); svg.setAttribute('height',h);
 }
 window.addEventListener('resize',resizeRenderer); resizeRenderer();
 
@@ -585,6 +738,14 @@ function tColor(pct,type,slack=false){
   }
 }
 
+// Get pairing tint color for a member
+function getMemberPairingColor(type, idx) {
+  for (const p of state.pairings) {
+    if (p.members.some(m => m.type === type && m.id === idx)) return p.color;
+  }
+  return null;
+}
+
 // ═══════════════════════════════════════════════
 // COMPUTE NODE ROLES (dominance detection)
 // ═══════════════════════════════════════════════
@@ -633,6 +794,37 @@ function initPhysics(topo){
   });
 }
 
+function applyPressureForces(){
+  if(state.pressure <= 0) return;
+  const ns = state.simNodes;
+  if(ns.length === 0) return;
+  // Centroid
+  let cx=0,cy=0,cz=0;
+  ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
+  cx/=ns.length; cy/=ns.length; cz/=ns.length;
+  // Find dominant/convergence node if any
+  let biasX=cx, biasY=cy, biasZ=cz;
+  const topo=state.topology;
+  if(topo){
+    const convNode=topo.nodes.find(n=>n.role==='convergence'||n.role==='dominant');
+    if(convNode){
+      const sn=ns[convNode.id];
+      if(sn){
+        biasX=cx*0.7+sn.pos[0]*0.3;
+        biasY=cy*0.7+sn.pos[1]*0.3;
+        biasZ=cz*0.7+sn.pos[2]*0.3;
+      }
+    }
+  }
+  const p=state.pressure/100;
+  ns.forEach(n=>{
+    if(n.pinned)return;
+    n.force[0]+=(biasX-n.pos[0])*p*2.5;
+    n.force[1]+=(biasY-n.pos[1])*p*2.5;
+    n.force[2]+=(biasZ-n.pos[2])*p*2.5;
+  });
+}
+
 function physicsStep(dt=0.016){
   const ns=state.simNodes, sp=state.simSprings, damp=state.damping;
   ns.forEach(n=>n.force=[0,0,0]);
@@ -648,6 +840,8 @@ function physicsStep(dt=0.016){
     if(!na.pinned){na.force[0]+=fx;na.force[1]+=fy;na.force[2]+=fz;}
     if(!nb.pinned){nb.force[0]-=fx;nb.force[1]-=fy;nb.force[2]-=fz;}
   });
+  // Pressure forces (after spring forces)
+  applyPressureForces();
   let cx=0,cy=0,cz=0;
   ns.forEach(n=>{cx+=n.pos[0];cy+=n.pos[1];cz+=n.pos[2];});
   cx/=ns.length; cy/=ns.length; cz/=ns.length;
@@ -668,6 +862,35 @@ function physicsStep(dt=0.016){
   });
 }
 
+// Restoration check after pressure release
+function checkRestoreResponse(){
+  if(!state.pressureReleased) return;
+  if(Date.now() - state.pressureReleaseTime < 3000) return;
+  state.pressureReleased = false;
+  // Measure average velocity
+  const ns = state.simNodes;
+  if(ns.length === 0) return;
+  let totalVel = 0;
+  ns.forEach(n => totalVel += Math.sqrt(n.vel[0]**2+n.vel[1]**2+n.vel[2]**2));
+  const avgVel = totalVel / ns.length;
+  const health = computeHealthScore();
+  const indicator = document.getElementById('restore-indicator');
+  indicator.style.display = 'block';
+  if(avgVel < 0.002 && health < 40){
+    indicator.className = 'restore-indicator deformed';
+    indicator.textContent = 'Permanent deformation — restoration capacity degraded';
+  } else if(avgVel < 0.01){
+    indicator.className = 'restore-indicator restored';
+    indicator.textContent = 'Restored — structure returned to equilibrium';
+  } else {
+    indicator.className = 'restore-indicator restored';
+    indicator.textContent = 'Restoring…';
+    // Check again in 1.5s
+    state.pressureReleased = true;
+    state.pressureReleaseTime = Date.now() - 1500;
+  }
+}
+
 // ═══════════════════════════════════════════════
 // BUILD / REBUILD SCENE
 // ═══════════════════════════════════════════════
@@ -686,7 +909,6 @@ function loadCustomTopology(json){
   try{
     const data=JSON.parse(json);
     const topo=data.topology||data;
-    // Validate
     if(!topo.nodes||!topo.struts||!topo.cables) throw new Error('Missing nodes/struts/cables');
 
     const nds=topo.nodes.map((n,i)=>({
@@ -712,10 +934,21 @@ function loadCustomTopology(json){
       isCustom:true
     };
 
-    // deactivate all preset buttons
     document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
 
     state.topology=customTopo;
+
+    // Load pairings if present
+    if(topo.pairings && Array.isArray(topo.pairings)){
+      state.pairings = topo.pairings.map(p=>({
+        id: p.id || state._pairIdCounter++,
+        label: p.label || 'Pairing',
+        color: p.color || PAIR_COLORS[0],
+        members: p.members || []
+      }));
+      refreshPairingsTab();
+    }
+
     if(data.organization) {
       state.orgName=data.organization;
       document.getElementById('orgName').value=state.orgName;
@@ -727,7 +960,6 @@ function loadCustomTopology(json){
     updateAnalysis();
     updateOverlay();
 
-    // Scale camera to fit
     const allPos=customTopo.nodes.map(n=>n.pos);
     const xs=allPos.map(p=>p[0]),ys=allPos.map(p=>p[1]),zs=allPos.map(p=>p[2]);
     const span=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),Math.max(...zs)-Math.min(...zs));
@@ -750,8 +982,16 @@ function rebuildMeshes(){
     const [a,b]=s.nodes;
     if(a>=ns.length||b>=ns.length)return;
     const pct=s.tensionPct||100;
-    const col=tColor(pct,'strut');
-    const mat=new THREE.MeshPhongMaterial({color:new THREE.Color(col),shininess:80,specular:new THREE.Color(0.4,0.4,0.5)});
+    let baseCol=tColor(pct,'strut');
+    // Pairing tint
+    const pairCol=getMemberPairingColor('strut',i);
+    if(pairCol){
+      const base=new THREE.Color(baseCol);
+      const pair=new THREE.Color(pairCol);
+      base.lerp(pair,0.3);
+      baseCol='#'+base.getHexString();
+    }
+    const mat=new THREE.MeshPhongMaterial({color:new THREE.Color(baseCol),shininess:80,specular:new THREE.Color(0.4,0.4,0.5)});
     const m=cylBetween(ns[a].pos,ns[b].pos,0.05,mat);
     if(m){m.userData={type:'strut',idx:i};scene.add(m);strutMeshes.push(m);}
   });
@@ -760,8 +1000,15 @@ function rebuildMeshes(){
   topo.cables.forEach((c,i)=>{
     const [a,b]=c.nodes;
     if(a>=ns.length||b>=ns.length)return;
-    const col=tColor(c.tensionPct,'cable',c.slack);
-    const mat=new THREE.LineBasicMaterial({color:new THREE.Color(col),linewidth:c.slack?0.5:1.5});
+    let baseCol=tColor(c.tensionPct,'cable',c.slack);
+    const pairCol=getMemberPairingColor('cable',i);
+    if(pairCol){
+      const base=new THREE.Color(baseCol);
+      const pair=new THREE.Color(pairCol);
+      base.lerp(pair,0.3);
+      baseCol='#'+base.getHexString();
+    }
+    const mat=new THREE.LineBasicMaterial({color:new THREE.Color(baseCol),linewidth:c.slack?0.5:1.5});
     const pts=[new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)];
     const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat);
     line.userData={type:'cable',idx:i};
@@ -785,7 +1032,6 @@ function rebuildMeshes(){
       mesh.userData={type:'node',idx:i};
       scene.add(mesh); nodeMeshes.push(mesh);
 
-      // Dominance ring
       if(state.showDominance&&n.role==='dominant'){
         const rg=new THREE.TorusGeometry(nodeRadius*1.8,0.012,8,32);
         const rm=new THREE.MeshBasicMaterial({color:0xf06060,transparent:true,opacity:0.5});
@@ -826,7 +1072,10 @@ function updateMeshPositions(){
     const dir=new THREE.Vector3().subVectors(vB,vA); const len=dir.length();
     if(len<1e-8)return;
     const pct=state.simSprings.find(s=>s.type==='strut'&&s.memberIdx===i)?.currentForce||0;
-    m.material.color.set(new THREE.Color(tColor(pct,'strut')));
+    let baseCol=tColor(pct,'strut');
+    const pairCol=getMemberPairingColor('strut',i);
+    if(pairCol){const bc=new THREE.Color(baseCol);bc.lerp(new THREE.Color(pairCol),0.3);baseCol='#'+bc.getHexString();}
+    m.material.color.set(new THREE.Color(baseCol));
     m.position.copy(new THREE.Vector3().addVectors(vA,vB).multiplyScalar(0.5));
     m.scale.y=len/(m.geometry.parameters.height||1);
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());
@@ -835,11 +1084,13 @@ function updateMeshPositions(){
   cableMeshes.forEach((line,i)=>{
     if(i>=topo.cables.length)return;
     const c=topo.cables[i]; const [a,b]=c.nodes; if(a>=ns.length||b>=ns.length)return;
-    // Update per-member tension pct from sim
     const sp=state.simSprings.find(s=>s.type==='cable'&&s.memberIdx===i);
     const rawForce=sp?.currentForce||0;
     const effectivePct=rawForce>0?(rawForce/(600*0.3))*100:c.tensionPct;
-    line.material.color.set(new THREE.Color(tColor(effectivePct,'cable',c.slack)));
+    let baseCol=tColor(effectivePct,'cable',c.slack);
+    const pairCol=getMemberPairingColor('cable',i);
+    if(pairCol){const bc=new THREE.Color(baseCol);bc.lerp(new THREE.Color(pairCol),0.3);baseCol='#'+bc.getHexString();}
+    line.material.color.set(new THREE.Color(baseCol));
     line.geometry.setFromPoints([new THREE.Vector3(...ns[a].pos),new THREE.Vector3(...ns[b].pos)]);
   });
 
@@ -848,7 +1099,6 @@ function updateMeshPositions(){
   });
 
   domRings.forEach((ring,i)=>{
-    // align to camera face
     const domNodes=topo.nodes.filter(n=>n.role==='dominant');
     if(i<domNodes.length){
       const ni=domNodes[i].id; if(ni<ns.length) ring.position.set(...ns[ni].pos);
@@ -856,7 +1106,6 @@ function updateMeshPositions(){
     }
   });
 
-  // label positions
   if(state.showLabels){
     let li=0;
     topo.struts.forEach((s,i)=>{
@@ -875,7 +1124,173 @@ function updateMeshPositions(){
 }
 
 // ═══════════════════════════════════════════════
-// RAYCASTING
+// PAIRING SVG OVERLAY
+// ═══════════════════════════════════════════════
+function worldToScreen(vec3){
+  const vp = document.getElementById('viewport');
+  const w = vp.clientWidth, h = vp.clientHeight;
+  const v = vec3.clone().project(camera);
+  return {
+    x: (v.x * 0.5 + 0.5) * w,
+    y: (-v.y * 0.5 + 0.5) * h
+  };
+}
+
+function getMemberMidpoint(type, id){
+  const topo = state.topology;
+  const ns = state.simNodes;
+  if(!topo) return null;
+  let nodes;
+  if(type === 'strut') {
+    if(id >= topo.struts.length) return null;
+    nodes = topo.struts[id].nodes;
+  } else {
+    if(id >= topo.cables.length) return null;
+    nodes = topo.cables[id].nodes;
+  }
+  const [a, b] = nodes;
+  if(a >= ns.length || b >= ns.length) return null;
+  return new THREE.Vector3(
+    (ns[a].pos[0]+ns[b].pos[0])/2,
+    (ns[a].pos[1]+ns[b].pos[1])/2,
+    (ns[a].pos[2]+ns[b].pos[2])/2
+  );
+}
+
+function getMemberEndpoints(type, id){
+  const topo = state.topology;
+  const ns = state.simNodes;
+  if(!topo) return null;
+  let nodes;
+  if(type === 'strut') {
+    if(id >= topo.struts.length) return null;
+    nodes = topo.struts[id].nodes;
+  } else {
+    if(id >= topo.cables.length) return null;
+    nodes = topo.cables[id].nodes;
+  }
+  const [a, b] = nodes;
+  if(a >= ns.length || b >= ns.length) return null;
+  return [
+    new THREE.Vector3(...ns[a].pos),
+    new THREE.Vector3(...ns[b].pos)
+  ];
+}
+
+function getMemberHealth(type, id){
+  const topo = state.topology;
+  if(!topo) return 0.5;
+  if(type === 'cable'){
+    const c = topo.cables[id];
+    if(!c) return 0.5;
+    return c.slack ? 0 : Math.min(1, (c.tensionPct||100)/100);
+  } else {
+    const s = topo.struts[id];
+    if(!s) return 0.5;
+    return s.score != null ? s.score/10 : 0.5;
+  }
+}
+
+function updatePairSVG(){
+  const svg = document.getElementById('pair-svg');
+  svg.innerHTML = '';
+  if(!state.showPairings || state.pairings.length === 0) return;
+
+  // Camera up direction in screen for arc offsets
+  const camUp = new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion);
+
+  state.pairings.forEach(pairing => {
+    const isActive = state.activePairingId === pairing.id;
+    const isHighlighted = isActive ||
+      pairing.members.some(m => m.type === state.selectedType && m.id === state.selectedIdx);
+
+    // Compute avg health
+    let healthSum = 0;
+    pairing.members.forEach(m => { healthSum += getMemberHealth(m.type, m.id); });
+    const avgHealth = pairing.members.length > 0 ? healthSum / pairing.members.length : 0.5;
+
+    const strokeW = (1.5 + avgHealth*6) * (isHighlighted ? 2 : 1);
+    const opacity = isHighlighted ? 1 : (0.15 + avgHealth*0.6);
+
+    if(pairing.members.length < 2) return;
+
+    if(pairing.members.length === 2){
+      // Simple arc between midpoints
+      const mp0 = getMemberMidpoint(pairing.members[0].type, pairing.members[0].id);
+      const mp1 = getMemberMidpoint(pairing.members[1].type, pairing.members[1].id);
+      if(!mp0 || !mp1) return;
+      const s0 = worldToScreen(mp0);
+      const s1 = worldToScreen(mp1);
+      const mx = (s0.x+s1.x)/2, my = (s0.y+s1.y)/2;
+      const healthFactor = avgHealth;
+      const offset = 40 * healthFactor;
+      const cx2 = mx - camUp.y * offset;
+      const cy2 = my + camUp.x * offset;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',`M ${s0.x} ${s0.y} Q ${cx2} ${cy2} ${s1.x} ${s1.y}`);
+      path.setAttribute('stroke', pairing.color);
+      path.setAttribute('stroke-width', strokeW);
+      path.setAttribute('opacity', opacity);
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke-linecap','round');
+      svg.appendChild(path);
+    } else {
+      // Multi-member: hub (first member) connects to each other member
+      const hub = pairing.members[0];
+      const hubEps = getMemberEndpoints(hub.type, hub.id);
+      if(!hubEps) return;
+      const hubMid = getMemberMidpoint(hub.type, hub.id);
+      if(!hubMid) return;
+
+      for(let i = 1; i < pairing.members.length; i++){
+        const m = pairing.members[i];
+        const eps = getMemberEndpoints(m.type, m.id);
+        if(!eps) continue;
+        const mMid = getMemberMidpoint(m.type, m.id);
+        if(!mMid) continue;
+        // Arc from hub midpoint endpoint to member midpoint
+        const sHub = worldToScreen(hubMid);
+        const sMem = worldToScreen(mMid);
+        const mx2 = (sHub.x+sMem.x)/2, my2 = (sHub.y+sMem.y)/2;
+        const offset = 40 * avgHealth;
+        const cx3 = mx2 - camUp.y * offset;
+        const cy3 = my2 + camUp.x * offset;
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d',`M ${sHub.x} ${sHub.y} Q ${cx3} ${cy3} ${sMem.x} ${sMem.y}`);
+        path.setAttribute('stroke', pairing.color);
+        path.setAttribute('stroke-width', strokeW);
+        path.setAttribute('opacity', opacity);
+        path.setAttribute('fill','none');
+        path.setAttribute('stroke-linecap','round');
+        svg.appendChild(path);
+      }
+    }
+
+    // Pairing label overlay when a member of this pairing is selected
+    if(state.selectedType && state.selectedIdx !== null){
+      const isMember = pairing.members.some(m => m.type === state.selectedType && m.id === state.selectedIdx);
+      if(isMember){
+        const mp = getMemberMidpoint(state.selectedType, state.selectedIdx);
+        if(mp){
+          const sPos = worldToScreen(mp);
+          const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+          txt.setAttribute('x', sPos.x);
+          txt.setAttribute('y', sPos.y - 22);
+          txt.setAttribute('text-anchor','middle');
+          txt.setAttribute('fill', pairing.color);
+          txt.setAttribute('font-size','11');
+          txt.setAttribute('font-family','Inter,sans-serif');
+          txt.setAttribute('font-weight','600');
+          txt.textContent = pairing.label;
+          svg.appendChild(txt);
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// RAYCASTING + SELECTION / PAIRING
 // ═══════════════════════════════════════════════
 const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 canvas.addEventListener('click',e=>{
@@ -885,7 +1300,45 @@ canvas.addEventListener('click',e=>{
   mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
   raycaster.setFromCamera(mouse,camera);
   const hits=raycaster.intersectObjects([...strutMeshes,...nodeMeshes]);
+
+  if(e.shiftKey){
+    // Shift-click: pairing mode
+    if(hits.length > 0){
+      const ud = hits[0].object.userData;
+      if(ud.type === 'node') return; // only struts/cables for pairing
+      const entry = {type: ud.type, id: ud.idx};
+      // Avoid duplicates
+      const dup = state.pendingPairMembers.some(m => m.type === entry.type && m.id === entry.id);
+      if(!dup) state.pendingPairMembers.push(entry);
+      openPairingModal();
+    } else if(!state.pairingPanelOpen) {
+      // Shift-click on empty: do nothing
+    }
+    return;
+  }
+
+  // Normal click
+  closePairingModal();
   if(hits.length>0) selectMember(hits[0].object.userData.type,hits[0].object.userData.idx);
+});
+
+// Also raycast cables (lines) on click
+canvas.addEventListener('click',e=>{
+  if(orbit.isDragging || e.shiftKey) return;
+  const rect=canvas.getBoundingClientRect();
+  mouse.x=((e.clientX-rect.left)/rect.width)*2-1;
+  mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  raycaster.params.Line = {threshold: 0.08};
+  const lineHits = raycaster.intersectObjects(cableMeshes);
+  if(lineHits.length > 0){
+    selectMember('cable', lineHits[0].object.userData.idx);
+  }
+},{capture:false});
+
+// Escape to cancel pairing
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closePairingModal();
 });
 
 function selectMember(type,idx){
@@ -912,6 +1365,193 @@ function selectMember(type,idx){
     document.getElementById('sel-detail').innerHTML=
       `Role: ${n.role}<br>Cables: ${n.connectedCables}<br>Load: ${n.tensionLoad?.toFixed(2)||'—'}`;
   }
+}
+
+// ═══════════════════════════════════════════════
+// PAIRING MODAL
+// ═══════════════════════════════════════════════
+function getAutoColor(){
+  const used = state.pairings.map(p => p.color);
+  return PAIR_COLORS.find(c => !used.includes(c)) || PAIR_COLORS[0];
+}
+
+function openPairingModal(){
+  state.pairingPanelOpen = true;
+  state.selectedPairColor = getAutoColor();
+  renderPairingModal();
+  document.getElementById('pair-modal').style.display = 'block';
+}
+
+function closePairingModal(){
+  state.pairingPanelOpen = false;
+  state.pendingPairMembers = [];
+  document.getElementById('pair-modal').style.display = 'none';
+}
+
+function renderPairingModal(){
+  const topo = state.topology;
+  const modal = document.getElementById('pair-modal');
+  // Badge
+  document.getElementById('pair-count-badge').textContent = state.pendingPairMembers.length;
+  // Member list
+  const list = document.getElementById('pair-member-list');
+  list.innerHTML = '';
+  state.pendingPairMembers.forEach((m, i) => {
+    let label = '?';
+    if(topo){
+      if(m.type === 'strut' && m.id < topo.struts.length) label = topo.struts[m.id].label;
+      else if(m.type === 'cable' && m.id < topo.cables.length) label = topo.cables[m.id].label;
+    }
+    const row = document.createElement('div');
+    row.className = 'pair-member-row';
+    row.innerHTML = `<span class="pair-type-badge ${m.type}">${m.type.toUpperCase()}</span>
+      <span class="pair-member-label">${label}</span>
+      <button class="pair-remove-btn" onclick="removePendingMember(${i})">×</button>`;
+    list.appendChild(row);
+  });
+  // Color swatches
+  const swatchRow = document.getElementById('color-swatch-row');
+  swatchRow.innerHTML = '';
+  PAIR_COLORS.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (c === state.selectedPairColor ? ' selected' : '');
+    sw.style.background = c;
+    sw.onclick = () => {
+      state.selectedPairColor = c;
+      renderPairingModal();
+    };
+    swatchRow.appendChild(sw);
+  });
+}
+
+function removePendingMember(i){
+  state.pendingPairMembers.splice(i, 1);
+  if(state.pendingPairMembers.length === 0){
+    closePairingModal();
+    return;
+  }
+  renderPairingModal();
+}
+
+document.getElementById('btn-pair-confirm').addEventListener('click', () => {
+  if(state.pendingPairMembers.length < 2) return;
+  const label = document.getElementById('pair-label-input').value || 'Pairing';
+  const pairing = {
+    id: state._pairIdCounter++,
+    label,
+    color: state.selectedPairColor,
+    members: [...state.pendingPairMembers]
+  };
+  state.pairings.push(pairing);
+  refreshPairingsTab();
+  rebuildMeshes(); // tint members
+  closePairingModal();
+  document.getElementById('pair-label-input').value = '';
+});
+
+document.getElementById('btn-pair-cancel').addEventListener('click', closePairingModal);
+
+// ═══════════════════════════════════════════════
+// PAIRINGS TAB
+// ═══════════════════════════════════════════════
+function refreshPairingsTab(){
+  const list = document.getElementById('pairings-list');
+  list.innerHTML = '';
+  if(state.pairings.length === 0){
+    list.innerHTML = '<div style="font-size:10px;color:var(--text-muted);padding:5px 0">No pairings yet.</div>';
+    return;
+  }
+  state.pairings.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'pairing-row' + (state.activePairingId === p.id ? ' active' : '');
+    row.innerHTML = `<div class="pairing-swatch" style="background:${p.color}"></div>
+      <div class="pairing-label">${p.label}</div>
+      <div class="pairing-count">${p.members.length} members</div>
+      <button class="pairing-del" onclick="deletePairing(${p.id},event)">×</button>`;
+    row.addEventListener('click', () => {
+      state.activePairingId = state.activePairingId === p.id ? null : p.id;
+      refreshPairingsTab();
+    });
+    list.appendChild(row);
+  });
+}
+
+function deletePairing(id, e){
+  e.stopPropagation();
+  state.pairings = state.pairings.filter(p => p.id !== id);
+  if(state.activePairingId === id) state.activePairingId = null;
+  refreshPairingsTab();
+  rebuildMeshes();
+}
+
+document.getElementById('btn-clear-pairings').addEventListener('click', () => {
+  state.pairings = [];
+  state.activePairingId = null;
+  refreshPairingsTab();
+  rebuildMeshes();
+});
+
+// ═══════════════════════════════════════════════
+// DROP ZONE + FILE IMPORT
+// ═══════════════════════════════════════════════
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(file) readFileAndLoad(file);
+  fileInput.value = '';
+});
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if(file) readFileAndLoad(file);
+});
+
+// Drag-and-drop on viewport canvas too
+const viewportEl = document.getElementById('viewport');
+viewportEl.addEventListener('dragover', e => { e.preventDefault(); });
+viewportEl.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if(file) readFileAndLoad(file);
+});
+
+function readFileAndLoad(file){
+  if(!file.name.endsWith('.json') && file.type !== 'application/json'){
+    showImportStatus(false, 'File must be a .json file');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const json = ev.target.result;
+    document.getElementById('json-import').value = json;
+    const result = loadCustomTopology(json);
+    showImportStatus(result.ok, result.msg);
+    if(result.ok){
+      // Auto-switch to Analysis tab
+      switchTab('analysis');
+    }
+  };
+  reader.onerror = () => showImportStatus(false, 'Failed to read file');
+  reader.readAsText(file);
+}
+
+function switchTab(tabId){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+  document.getElementById(`tab-${tabId}`).classList.add('active');
+  if(tabId==='analysis') updateAnalysis();
 }
 
 // ═══════════════════════════════════════════════
@@ -1068,12 +1708,11 @@ function computeHealthScore(){
   const slackCount=topo.cables.filter(c=>c.slack).length;
   const activeCables=nC-slackCount;
   const avgTension=activeCables>0?topo.cables.filter(c=>!c.slack).reduce((a,c)=>a+(c.tensionPct||100),0)/activeCables:0;
-  // convergence: % of tension load on single most-loaded node
   const nodeLoad=new Array(topo.nodes.length).fill(0);
   topo.cables.forEach(c=>{if(!c.slack){nodeLoad[c.nodes[0]]+=c.tensionPct||100;nodeLoad[c.nodes[1]]+=c.tensionPct||100;}});
   const totalLoad=nodeLoad.reduce((a,v)=>a+v,0);
   const maxNodeLoad=Math.max(...nodeLoad,0);
-  const convergenceRatio=totalLoad>0?maxNodeLoad/totalLoad:0; // 1 = all through one node
+  const convergenceRatio=totalLoad>0?maxNodeLoad/totalLoad:0;
   const slackPenalty=(slackCount/Math.max(nC,1))*30;
   const convergencePenalty=convergenceRatio*25;
   const tensionScore=(avgTension/200)*40;
@@ -1094,7 +1733,6 @@ function updateAnalysis(){
   document.getElementById('health-class').textContent=cls.name;
   document.getElementById('poc-class-desc').textContent=cls.desc;
 
-  // Stats
   const slackCount=topo.cables.filter(c=>c.slack).length;
   const nodeLoad=new Array(topo.nodes.length).fill(0);
   topo.cables.forEach(c=>{if(!c.slack){nodeLoad[c.nodes[0]]+=c.tensionPct||100;nodeLoad[c.nodes[1]]+=c.tensionPct||100;}});
@@ -1111,7 +1749,6 @@ function updateAnalysis(){
   const dof=3*topo.nodes.length-(topo.struts.length+topo.cables.length);
   document.getElementById('stat-dof').textContent=dof+(dof<=0?' (rigid/prestressed)':' (mechanism)');
 
-  // Node roles
   const nrl=document.getElementById('node-role-list'); nrl.innerHTML='';
   topo.nodes.forEach((n,i)=>{
     const d=document.createElement('div'); d.className='node-item';
@@ -1121,7 +1758,6 @@ function updateAnalysis(){
     nrl.appendChild(d);
   });
 
-  // Tension map
   const tm=document.getElementById('tension-map'); tm.innerHTML='';
   const sorted=[...topo.cables].sort((a,b)=>(b.tensionPct||0)-(a.tensionPct||0)).slice(0,10);
   sorted.forEach(c=>{
@@ -1149,19 +1785,20 @@ function exportTopology(){
   const data={
     organization:state.orgName,
     geometry:topo.name, preset:state.topology.isCustom?'custom':state.preset,
-    pocVersion:'0.2',
+    pocVersion:'0.3',
     parameters:{twist:state.twist,aspect:state.aspect,scale:state.scale},
     topology:{
       nodes:topo.nodes.map(n=>({id:n.id,label:n.label,pos:n.pos,role:n.role})),
       struts:topo.struts.map(s=>({id:s.id,nodes:s.nodes,label:s.label,score:s.score,restLengthScale:s.restLengthScale,tensionPct:s.tensionPct})),
       cables:topo.cables.map(c=>({id:c.id,nodes:c.nodes,label:c.label,group:c.group,tensionPct:c.tensionPct,slack:c.slack})),
+      pairings:state.pairings.map(p=>({id:p.id,label:p.label,color:p.color,members:p.members})),
     },
     health:{tensegrityIndex:computeHealthScore()+'%',pocClass:document.getElementById('health-class').textContent,notes:''},
   };
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download=`${state.orgName.replace(/\s+/g,'-')}-tensegrity-v02.json`; a.click();
+  a.href=url; a.download=`${state.orgName.replace(/\s+/g,'-')}-tensegrity-v03.json`; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -1172,7 +1809,7 @@ const ACROSS_JSON=`{
   "organization": "Across Protocol",
   "geometry": "Custom Asymmetric — Single-Node Convergence",
   "preset": "custom",
-  "pocVersion": "0.2",
+  "pocVersion": "0.3",
   "topology": {
     "nodes": [
       {"id":0,"label":"Hub (Dominant Node)","pos":[0.0,0.0,0.0],"role":"convergence"},
@@ -1201,7 +1838,8 @@ const ACROSS_JSON=`{
       {"id":7,"nodes":[3,4],"label":"Lateral · Participation↔Equity","group":"lateral","tensionPct":5,"slack":true},
       {"id":8,"nodes":[4,5],"label":"Lateral · Equity↔Legitimacy","group":"lateral","tensionPct":10,"slack":true},
       {"id":9,"nodes":[1,4],"label":"Lateral · Accountability↔Equity","group":"lateral","tensionPct":6,"slack":true}
-    ]
+    ],
+    "pairings": []
   }
 }`;
 
@@ -1212,11 +1850,7 @@ const ACROSS_JSON=`{
 // Tabs
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click',()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
-    if(tab.dataset.tab==='analysis') updateAnalysis();
+    switchTab(tab.dataset.tab);
   });
 });
 
@@ -1254,12 +1888,73 @@ document.getElementById('sl-compression').addEventListener('input',e=>{
 });
 document.getElementById('sl-damping').addEventListener('input',e=>{state.damping=parseFloat(e.target.value);document.getElementById('val-damping').textContent=state.damping.toFixed(3);});
 
-// Toggles
+// Display toggles
 document.getElementById('tog-nodes').addEventListener('change',e=>{state.showNodes=e.target.checked;rebuildMeshes();});
 document.getElementById('tog-labels').addEventListener('change',e=>{state.showLabels=e.target.checked;rebuildMeshes();});
 document.getElementById('tog-tension-color').addEventListener('change',e=>{state.colorTension=e.target.checked;});
 document.getElementById('tog-animate').addEventListener('change',e=>{state.animate=e.target.checked;});
 document.getElementById('tog-dominance').addEventListener('change',e=>{state.showDominance=e.target.checked;rebuildMeshes();});
+document.getElementById('tog-pairings').addEventListener('change',e=>{
+  state.showPairings=e.target.checked;
+  if(!state.showPairings){
+    document.getElementById('pair-svg').innerHTML='';
+  }
+});
+
+// Pressure slider
+document.getElementById('sl-pressure').addEventListener('input',e=>{
+  state.pressure=parseInt(e.target.value);
+  document.getElementById('val-pressure').textContent=state.pressure;
+  // Update pressure bar
+  const cover = document.getElementById('pressure-bar-cover');
+  cover.style.width = (100-state.pressure)+'%';
+  // Clear restore indicator while adjusting
+  const ind = document.getElementById('restore-indicator');
+  ind.style.display='none';
+  state.pressureReleased=false;
+});
+
+document.getElementById('btn-release-pressure').addEventListener('click',()=>{
+  state.pressure=0;
+  document.getElementById('sl-pressure').value=0;
+  document.getElementById('val-pressure').textContent='0';
+  document.getElementById('pressure-bar-cover').style.width='100%';
+  const ind = document.getElementById('restore-indicator');
+  ind.style.display='block';
+  ind.className='restore-indicator restored';
+  ind.textContent='Restoring…';
+  state.pressureReleased=true;
+  state.pressureReleaseTime=Date.now();
+});
+
+document.getElementById('btn-stress-test').addEventListener('click',()=>{
+  // Ramp: 0→40→80→100→0 over 3.5 seconds
+  const ind = document.getElementById('restore-indicator');
+  ind.style.display='none';
+  state.pressureReleased=false;
+  const steps=[
+    {t:0, p:0},
+    {t:700, p:40},
+    {t:1400, p:80},
+    {t:2100, p:100},
+    {t:3500, p:0}
+  ];
+  steps.forEach(step=>{
+    setTimeout(()=>{
+      state.pressure=step.p;
+      document.getElementById('sl-pressure').value=step.p;
+      document.getElementById('val-pressure').textContent=step.p;
+      document.getElementById('pressure-bar-cover').style.width=(100-step.p)+'%';
+      if(step.p===0){
+        ind.style.display='block';
+        ind.className='restore-indicator restored';
+        ind.textContent='Restoring…';
+        state.pressureReleased=true;
+        state.pressureReleaseTime=Date.now();
+      }
+    }, step.t);
+  });
+});
 
 // Org name
 document.getElementById('orgName').addEventListener('input',e=>{state.orgName=e.target.value;updateOverlay();});
@@ -1270,17 +1965,14 @@ document.getElementById('btn-import').addEventListener('click',()=>{
   if(!json){showImportStatus(false,'Paste JSON first');return;}
   const result=loadCustomTopology(json);
   showImportStatus(result.ok,result.msg);
+  if(result.ok) switchTab('analysis');
 });
 
 document.getElementById('btn-load-across').addEventListener('click',()=>{
   document.getElementById('json-import').value=ACROSS_JSON;
   const result=loadCustomTopology(ACROSS_JSON);
   showImportStatus(result.ok,result.msg);
-  // Switch to analysis to show the results
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelector('[data-tab="analysis"]').classList.add('active');
-  document.getElementById('tab-analysis').classList.add('active');
+  switchTab('analysis');
   updateAnalysis();
 });
 
@@ -1308,6 +2000,8 @@ let frame=0;
 function animate(){
   requestAnimationFrame(animate);
   if(state.animate&&state.simNodes.length>0){ physicsStep(0.016); updateMeshPositions(); }
+  if(state.showPairings) updatePairSVG();
+  checkRestoreResponse();
   if(++frame%45===0){ updateAnalysis(); }
   renderer.render(scene,camera);
 }
@@ -1316,6 +2010,7 @@ function animate(){
 // INIT
 // ═══════════════════════════════════════════════
 buildScene();
+refreshPairingsTab();
 animate();
 </script>
 </body>
